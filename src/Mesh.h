@@ -41,7 +41,7 @@ public:
     // mesh Data
     vector<Vertex>       vertices;
     vector<unsigned int> indices;
-    vector<MeshTexture>      textures;
+    vector<MeshTexture>  textures;
     unsigned int VAO;
 
     // constructor

@@ -119,6 +119,7 @@ int main(int, char**)
 
     // Load model
     Model nanosuit_model("../../res/models/nanosuit/nanosuit.obj");
+    
 
     float vertices[] = {
         -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
@@ -192,7 +193,7 @@ int main(int, char**)
 
     // textures
     //Texture texture2("../.. /res/textures/cats.jpg");
-    Texture texture("../../res/textures/stone.jpg");
+    Texture texture("../../res/textures/box_diffuse.png");
     cubesShader.use();
     //cubesShader.setInt("texture2", 0);
     cubesShader.setInt("texture", 1);
@@ -325,11 +326,11 @@ int main(int, char**)
         }
         glDrawArrays(GL_TRIANGLES, 0, 36);
         
-        nanosuit_model.Draw(cubesShader);
-        nanosuit_model.gammaCorrection = 11.0f;
-        // exp_end
+        // Render nanosuit 3d model
+        //nanosuit_model.Draw(cubesShader);
+        
 
-
+        // ImGui
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwMakeContextCurrent(window);
