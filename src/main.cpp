@@ -112,7 +112,13 @@ int main(int, char**)
 
     // Load Resources
     glEnable(GL_DEPTH_TEST);
+    //glEnable(GL_CULL_FACE);  // Face Culling
+
+
     Shader cubesShader("../../res/shaders/vshader.vs", "../../res/shaders/fshader.fs", nullptr);
+
+    // Load model
+    Model nanosuit_model("../../res/models/nanosuit/nanosuit.obj");
 
     float vertices[] = {
         -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
@@ -185,11 +191,11 @@ int main(int, char**)
     glEnableVertexAttribArray(1);
 
     // textures
-    Texture texture2("../.. /res/textures/cats.jpg");
-    Texture texture("../../res/textures/abstraction.png");
+    //Texture texture2("../.. /res/textures/cats.jpg");
+    Texture texture("../../res/textures/stone.jpg");
     cubesShader.use();
+    //cubesShader.setInt("texture2", 0);
     cubesShader.setInt("texture", 1);
-    cubesShader.setInt("texture2", 0);
 
 
     // Setup Dear ImGui binding
@@ -303,7 +309,7 @@ int main(int, char**)
         // camera/view transformation
         glm::mat4 view = camera.GetViewMatrix();
         cubesShader.setMat4("view", view);
-
+        
         // render boxes
         glBindVertexArray(VAO);
         for (unsigned int i = 0; i < 10; i++)
@@ -317,9 +323,12 @@ int main(int, char**)
 
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
-
         glDrawArrays(GL_TRIANGLES, 0, 36);
+        
+        nanosuit_model.Draw(cubesShader);
+        nanosuit_model.gammaCorrection = 11.0f;
         // exp_end
+
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -356,10 +365,14 @@ void processInput(GLFWwindow* window)
         camera.ProcessKeyboard(RIGHT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
     {
-        if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED)
+        if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED) {
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-        else
+            camera.MouseSensitivity = 0.0f;
+        }
+        else {
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            camera.MouseSensitivity = 0.1f;
+        }
     }
 }
 
