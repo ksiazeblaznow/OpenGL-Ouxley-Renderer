@@ -59,8 +59,6 @@ bool firstMouse = true;
 float deltaTime = 0.0f;	// time between current frame and last frame
 float lastFrame = 0.0f;
 
-// light pos
-
 
 // main
 int main(int, char**)
@@ -251,10 +249,10 @@ int main(int, char**)
     bool show_demo_window = true;
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.1f, 0.1f, 0.1f, 1.00f);
-    glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
-    glm::vec3 lightAmbient(3.f, 3.f, 3.f);
-    glm::vec3 lightDiffuse(3.f, 3.f, 3.f);
-    glm::vec3 lightSpecular(3.f, 3.f, 3.f);
+    glm::vec3 lightPos      (1.f, 1.f, 2.f);
+    glm::vec3 lightAmbient  (1.f, 1.f, 1.f);
+    glm::vec3 lightDiffuse  (1.f, 1.f, 1.f);
+    glm::vec3 lightSpecular (1.f, 1.f, 1.f);
 
     // Main loop
     while (!glfwWindowShouldClose(window))
@@ -335,7 +333,8 @@ int main(int, char**)
     
         // activate material shader
         shader.use();
-        shader.setVec3("light.position", lightPos);
+        shader.setVec3("light.direction", lightPos);  // if directional light used  #TEMP
+        //shader.setVec3("light.position", lightPos);  // if point light used  #TEMP
         shader.setVec3("viewPos", camera.Position);
 
         // light properties
