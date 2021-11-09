@@ -60,7 +60,7 @@ float deltaTime = 0.0f;	// time between current frame and last frame
 float lastFrame = 0.0f;
 
 // light pos
-glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
+
 
 // main
 int main(int, char**)
@@ -196,6 +196,17 @@ int main(int, char**)
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
 
+    // The white cube
+    // second, configure the light's VAO (VBO stays the same; the vertices are the same for the light object which is also a 3D cube)
+    unsigned int lightCubeVAO;
+    glGenVertexArrays(1, &lightCubeVAO);
+    glBindVertexArray(lightCubeVAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    // note that we update the lamp's position attribute's stride to reflect the updated buffer data
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
 
     // textures
     Texture texture("../../res/textures/crate-diffuse.jpg");
@@ -240,6 +251,10 @@ int main(int, char**)
     bool show_demo_window = true;
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.1f, 0.1f, 0.1f, 1.00f);
+    glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
+    glm::vec3 lightAmbient(3.f, 3.f, 3.f);
+    glm::vec3 lightDiffuse(3.f, 3.f, 3.f);
+    glm::vec3 lightSpecular(3.f, 3.f, 3.f);
 
     // Main loop
     while (!glfwWindowShouldClose(window))
@@ -282,6 +297,13 @@ int main(int, char**)
 
             ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
             ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+            ImGui::SliderFloat3("Light position", (float*)&lightPos, -10.f, 10.f); // Edit 3 floats representing a color
+
+            // light things
+            ImGui::Text("Light specification below");
+            ImGui::SliderFloat3("Light Ambient", (float*)&lightAmbient, 0.f, 10.f);
+            ImGui::SliderFloat3("Light Specular", (float*)&lightSpecular, 0.f, 10.f);
+            ImGui::SliderFloat3("Light Diffuse", (float*)&lightDiffuse, 0.f, 10.f);
 
             if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
                 counter++;
@@ -317,9 +339,9 @@ int main(int, char**)
         shader.setVec3("viewPos", camera.Position);
 
         // light properties
-        shader.setVec3("light.ambient", 0.2f, 0.2f, 0.2f);
-        shader.setVec3("light.diffuse", 0.5f, 0.5f, 0.5f);
-        shader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
+        shader.setVec3("light.ambient",  lightAmbient);
+        shader.setVec3("light.diffuse",  lightDiffuse);
+        shader.setVec3("light.specular", lightSpecular);
 
         // material props
         shader.setFloat("material.shininess", 64.0f);
@@ -353,6 +375,18 @@ int main(int, char**)
 
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        
+        // Draw lamp/white/light cube
+        lightShader.use();
+        lightShader.setMat4("projection", projection);
+        lightShader.setMat4("view", view);
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, lightPos);
+        model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
+        lightShader.setMat4("model", model);
+
+        glBindVertexArray(lightCubeVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         
         // Render nanosuit 3d model
