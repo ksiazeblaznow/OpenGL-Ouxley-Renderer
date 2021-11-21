@@ -118,7 +118,7 @@ int main(int, char**)
     Shader shader("../../res/shaders/vshader.vs", "../../res/shaders/fshader.fs", nullptr);
     Shader lightShader("../../res/shaders/lightShader.vs", "../../res/shaders/lightShader.fs", nullptr);
     // Load model
-    Model nanosuit_model("../../res/models/nanosuit/nanosuit.obj");
+    //Model nanosuit_model("../../res/models/nanosuit/nanosuit.obj");
     
     float vertices[] = {
         // positions          // normals           // texture coords
@@ -215,6 +215,9 @@ int main(int, char**)
     shader.use();
     shader.setInt("material.diffuse", 0);
     shader.setInt("material.specular", 1);
+    shader.setFloat("light.constant", 1.0f);
+    shader.setFloat("light.linear", 0.09f);
+    shader.setFloat("light.quadratic", 0.032f);
     
 
     // Setup Dear ImGui binding
@@ -333,8 +336,8 @@ int main(int, char**)
     
         // activate material shader
         shader.use();
-        shader.setVec3("light.direction", lightPos);  // if directional light used  #TEMP
-        //shader.setVec3("light.position", lightPos);  // if point light used  #TEMP
+        //shader.setVec3("light.direction", lightPos);  // if directional light used  #TEMP
+        shader.setVec3("light.position", lightPos);  // if point light used  #TEMP
         shader.setVec3("viewPos", camera.Position);
 
         // light properties
