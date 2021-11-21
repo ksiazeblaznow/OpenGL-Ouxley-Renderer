@@ -118,7 +118,7 @@ int main(int, char**)
     Shader shader("../../res/shaders/vshader.vs", "../../res/shaders/fshader.fs", nullptr);
     Shader lightShader("../../res/shaders/lightShader.vs", "../../res/shaders/lightShader.fs", nullptr);
     // Load model
-    //Model nanosuit_model("../../res/models/nanosuit/nanosuit.obj");
+    Model nanosuit_model("../../res/models/nanosuit/nanosuit.obj");
     
     float vertices[] = {
         // positions          // normals           // texture coords
@@ -336,8 +336,10 @@ int main(int, char**)
     
         // activate material shader
         shader.use();
-        //shader.setVec3("light.direction", lightPos);  // if directional light used  #TEMP
-        shader.setVec3("light.position", lightPos);  // if point light used  #TEMP
+        shader.setVec3("light.position", camera.Position);  // if point light used  #TEMP
+        shader.setVec3("light.direction", camera.Front);  // if directional light used  #TEMP
+        shader.setFloat("light.cutOff", glm::cos(glm::radians(12.5f)));
+        shader.setFloat("light.outerCutOff", glm::cos(glm::radians(17.5f)));
         shader.setVec3("viewPos", camera.Position);
 
         // light properties
@@ -378,6 +380,9 @@ int main(int, char**)
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
         glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        // Render nanosuit 3d model
+        nanosuit_model.Draw(shader);
         
         // Draw lamp/white/light cube
         lightShader.use();
@@ -390,9 +395,6 @@ int main(int, char**)
 
         glBindVertexArray(lightCubeVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
-        
-        // Render nanosuit 3d model
-        //nanosuit_model.Draw(cubesShader);
 
         // ImGui
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
