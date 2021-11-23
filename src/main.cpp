@@ -28,6 +28,7 @@
 #include "Mesh.h"
 #include "Model.h"
 #include "Camera.h"
+#include "GameObject.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -113,12 +114,13 @@ int main(int, char**)
 
     // Load Resources
     glEnable(GL_DEPTH_TEST);
-    //glEnable(GL_CULL_FACE);  // Face Culling
+    glEnable(GL_CULL_FACE);  // Face Culling
 
     Shader shader("../../res/shaders/vshader.vs", "../../res/shaders/fshader.fs", nullptr);
     Shader lightShader("../../res/shaders/lightShader.vs", "../../res/shaders/lightShader.fs", nullptr);
     // Load model
     Model nanosuit_model("../../res/models/nanosuit/nanosuit.obj");
+    Model icosphere_robot("../../res/models/icosphere-robot.obj");
     
     float vertices[] = {
         // positions          // normals           // texture coords
@@ -165,7 +167,7 @@ int main(int, char**)
         -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f
     };
     glm::vec3 cubePositions[] = {
-        glm::vec3(0.0f,  0.0f,  0.0f),
+        glm::vec3(1.f,  0.0f,  0.0f),
         glm::vec3(2.0f,  5.0f, -15.0f),
         glm::vec3(-1.5f, -2.2f, -2.5f),
         glm::vec3(-3.8f, -2.0f, -12.3f),
@@ -207,7 +209,7 @@ int main(int, char**)
 
 
     // textures
-    Texture texture("../../res/textures/crate-diffuse.jpg");
+    //Texture texture("../../res/textures/crate-diffuse.jpg");
     GLuint diffuseMap = loadTexture("../../res/textures/box-diffuse.png");
     GLuint specularMap = loadTexture("../../res/textures/box-specular.png");
     
@@ -219,6 +221,28 @@ int main(int, char**)
     shader.setFloat("light.linear", 0.09f);
     shader.setFloat("light.quadratic", 0.032f);
     
+    // game objects
+    // #todelete
+    GameObject gameObject("../../res/models/icosphere-robot.obj");
+
+    gameObject.transform.pos.x = 10;
+    const float scale = 0.75f;
+    gameObject.transform.scale = { scale,scale,scale };
+    {
+        GameObject* lastObject = &gameObject;
+
+        for (unsigned int i = 0; i < 10; ++i)
+        {
+            lastObject->AddChild("../../res/models/icosphere-robot.obj");
+            lastObject = lastObject->children.back().get();
+
+            //Set tranform values
+            lastObject->transform.pos.x = 1;
+            lastObject->transform.scale = { scale, scale, scale };
+        }
+    }
+    gameObject.updateSelfAndChildren();
+
 
     // Setup Dear ImGui binding
     IMGUI_CHECKVERSION();
@@ -256,6 +280,10 @@ int main(int, char**)
     glm::vec3 lightAmbient  (1.f, 1.f, 1.f);
     glm::vec3 lightDiffuse  (1.f, 1.f, 1.f);
     glm::vec3 lightSpecular (1.f, 1.f, 1.f);
+
+
+    /*glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);*/
 
     // Main loop
     while (!glfwWindowShouldClose(window))
@@ -299,6 +327,8 @@ int main(int, char**)
             ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
             ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
             ImGui::SliderFloat3("Light position", (float*)&lightPos, -10.f, 10.f); // Edit 3 floats representing a color
+
+            ImGui::Text("Camera Yaw=%f Pitch=%f", camera.Yaw, camera.Pitch);  // camera debug
 
             // light things
             ImGui::Text("Light specification below");
@@ -360,11 +390,32 @@ int main(int, char**)
         glm::mat4 model = glm::mat4(1.0f);
         shader.setMat4("model", model);
         
+        // game objects
+        // #todelete
+        GameObject* lastObject = &gameObject;
+        while (lastObject->children.size())
+        {
+            shader.setMat4("model", lastObject->transform.modelMatrix);
+            lastObject->Draw(shader);
+            lastObject = lastObject->children.back().get();
+        }
+        gameObject.transform.rot.y += 20 * deltaTime;
+        gameObject.updateSelfAndChildren();
+        //#todelete_end
+
+
+        // Render nanosuit 3d model
+        nanosuit_model.Draw(shader);
+
+        glm::mat4 modelA = glm::mat4(1.0f);
+        modelA = glm::translate(modelA, glm::vec3(0.f, 0.f, -1.f));
+        icosphere_robot.Draw(shader);
+        
         // bind textures
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, diffuseMap);  // diffuse
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, specularMap);  // specular
+        glBindTexture(GL_TEXTURE_2D, specularMap);  // specular        
 
         // render boxes
         glBindVertexArray(VAO);
@@ -380,9 +431,6 @@ int main(int, char**)
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
         glDrawArrays(GL_TRIANGLES, 0, 36);
-
-        // Render nanosuit 3d model
-        nanosuit_model.Draw(shader);
         
         // Draw lamp/white/light cube
         lightShader.use();
