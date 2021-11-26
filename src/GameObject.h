@@ -57,9 +57,18 @@ public:
 	//~GameObject();
 
 	template <typename... TArgs>
-	void AddChild(const TArgs&... args)
+	void CreateChild(const TArgs&... args)
 	{
 		children.emplace_back(std::make_unique<GameObject>(args...));
+		children.back()->parent = this;
+	}
+
+	// own approach to AddChild functions
+	// as the higher one doesn't support
+	// adding existing child
+	void AddChild(GameObject* child)
+	{
+		children.emplace_back(child);
 		children.back()->parent = this;
 	}
 

@@ -114,7 +114,7 @@ int main(int, char**)
 
     // Load Resources
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);  // Face Culling
+    //glEnable(GL_CULL_FACE);  // Face Culling
 
     Shader shader("../../res/shaders/vshader.vs", "../../res/shaders/fshader.fs", nullptr);
     Shader lightShader("../../res/shaders/lightShader.vs", "../../res/shaders/lightShader.fs", nullptr);
@@ -223,25 +223,26 @@ int main(int, char**)
     
     // game objects
     // #todelete
-    GameObject gameObject("../../res/models/icosphere-robot.obj");
+    GameObject gameObject1("../../res/models/icosphere-robot.obj");
+    GameObject gameObject2("../../res/models/icosphere-robot.obj");
+    GameObject gameObject3("../../res/models/icosphere-robot.obj");
 
-    gameObject.transform.pos.x = 10;
-    const float scale = 0.75f;
-    gameObject.transform.scale = { scale,scale,scale };
+    gameObject1.transform.pos.x = 10;
+    const float scale = 0.85f;
+    gameObject1.transform.scale = { scale,scale,scale };
     {
-        GameObject* lastObject = &gameObject;
+        //
+        gameObject1.AddChild(&gameObject2);  // involves breaktrough/error on window close probably #error
+        gameObject2.AddChild(&gameObject3);  // involves breaktrough/error on window close probably #error
 
-        for (unsigned int i = 0; i < 10; ++i)
-        {
-            lastObject->AddChild("../../res/models/icosphere-robot.obj");
-            lastObject = lastObject->children.back().get();
+        gameObject2.transform.pos.x = 4;
+        gameObject3.transform.pos.x = 2;
 
-            //Set tranform values
-            lastObject->transform.pos.x = 1;
-            lastObject->transform.scale = { scale, scale, scale };
-        }
+        gameObject2.transform.scale = { scale, scale, scale };
+        gameObject3.transform.scale = { scale, scale, scale };
+        //
     }
-    gameObject.updateSelfAndChildren();
+    gameObject1.updateSelfAndChildren();
 
 
     // Setup Dear ImGui binding
@@ -392,24 +393,50 @@ int main(int, char**)
         
         // game objects
         // #todelete
-        GameObject* lastObject = &gameObject;
-        while (lastObject->children.size())
-        {
-            shader.setMat4("model", lastObject->transform.modelMatrix);
-            lastObject->Draw(shader);
-            lastObject = lastObject->children.back().get();
-        }
-        gameObject.transform.rot.y += 20 * deltaTime;
-        gameObject.updateSelfAndChildren();
+        //
+        GameObject* obj = &gameObject1;                         // 1st object
+        shader.setMat4("model", obj->transform.modelMatrix);
+        obj->Draw(shader);
+        obj = obj->children.back().get();                       // 2nd object
+        shader.setMat4("model", obj->transform.modelMatrix);
+        obj->Draw(shader);
+        obj = obj->children.back().get();                       // 3rd object
+        shader.setMat4("model", obj->transform.modelMatrix);
+        obj->Draw(shader);
+
+        gameObject1.transform.rot.y += 20 * deltaTime;
+        gameObject2.transform.rot.y += 70 * deltaTime;
+        gameObject1.updateSelfAndChildren();
+
+        //
+        //GameObject* lastObject = &gameObject;
+        //while (lastObject->children.size())
+        //{
+        //    shader.setMat4("model", lastObject->transform.modelMatrix);
+        //    lastObject->Draw(shader);
+        //    lastObject = lastObject->children.back().get();
+        //}
+        //gameObject.transform.rot.y += 20 * deltaTime;
+        //gameObject.updateSelfAndChildren();
+        //// gameObject 2
+        //lastObject = &gameObject2;
+        //while (lastObject->children.size())
+        //{
+        //    shader.setMat4("model", lastObject->transform.modelMatrix);
+        //    lastObject->Draw(shader);
+        //    lastObject = lastObject->children.back().get();
+        //}
+        //gameObject2.transform.rot.y += 20 * deltaTime;
+        //gameObject2.updateSelfAndChildren();
         //#todelete_end
 
 
         // Render nanosuit 3d model
-        nanosuit_model.Draw(shader);
-
         glm::mat4 modelA = glm::mat4(1.0f);
         modelA = glm::translate(modelA, glm::vec3(0.f, 0.f, -1.f));
+        nanosuit_model.Draw(shader);
         icosphere_robot.Draw(shader);
+
         
         // bind textures
         glActiveTexture(GL_TEXTURE0);
