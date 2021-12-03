@@ -23,12 +23,14 @@
 #include <GLFW/glfw3.h> // Include glfw3.h after our OpenGL definitions
 
 // renderer code
-#include "Texture.h"
+
 #include "Shader.h"
 #include "Mesh.h"
 #include "Model.h"
 #include "Camera.h"
 #include "GameObject.h"
+#include "Framebuffer.h"
+//#include "Game.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -118,10 +120,11 @@ int main(int, char**)
 
     Shader shader("../../res/shaders/vshader.vs", "../../res/shaders/fshader.fs", nullptr);
     Shader lightShader("../../res/shaders/lightShader.vs", "../../res/shaders/lightShader.fs", nullptr);
+    Shader viewportProgram("../../res/shaders/Viewport.vert", "../../res/shaders/Viewport.frag", nullptr);
     // Load model
     Model nanosuit_model("../../res/models/nanosuit/nanosuit.obj");
     Model icosphere_robot("../../res/models/icosphere-robot.obj");
-    
+
     float vertices[] = {
         // positions          // normals           // texture coords
         -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
@@ -179,6 +182,8 @@ int main(int, char**)
         glm::vec3(-1.3f,  1.0f, -1.5f)
     };
 
+
+    // VAO, VBO buffers
     unsigned int VBO, VAO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
@@ -195,6 +200,34 @@ int main(int, char**)
     // texture attribute
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
+
+
+    // Framebuffer / Viewport shader
+    float viewportVertices[] =
+    {
+         1.0f,  1.0f, 1.0f, 0.0f,
+        -1.0f, -1.0f, 0.0f, 0.0f,
+        -1.0f,  1.0f, 0.0f, 1.0f,
+
+         1.0f,  1.0f, 1.0f, 1.0f,
+         1.0f, -1.0f, 1.0f, 0.0f
+        - 1.0f,  1.0f, 0.0f, 1.0f
+    };
+
+    Framebuffer FBO(screen_width, screen_height);
+
+    // Framebuffer
+    GLuint viewportVAO, viewportVBO;
+    glGenVertexArrays(1, &viewportVAO);
+    glGenBuffers(1, &viewportVBO);
+    glBindVertexArray(viewportVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, viewportVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(viewportVertices), viewportVertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    
 
     // The white cube
     // second, configure the light's VAO (VBO stays the same; the vertices are the same for the light object which is also a 3D cube)
@@ -362,6 +395,8 @@ int main(int, char**)
         glfwMakeContextCurrent(window);
         glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
+          // framebuffer
+        glBindFramebuffer(GL_FRAMEBUFFER, FBO.FBO);
         glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
@@ -372,28 +407,26 @@ int main(int, char**)
         shader.setFloat("light.cutOff", glm::cos(glm::radians(12.5f)));
         shader.setFloat("light.outerCutOff", glm::cos(glm::radians(17.5f)));
         shader.setVec3("viewPos", camera.Position);
-
         // light properties
         shader.setVec3("light.ambient",  lightAmbient);
         shader.setVec3("light.diffuse",  lightDiffuse);
         shader.setVec3("light.specular", lightSpecular);
-
-        // material props
         shader.setFloat("material.shininess", 64.0f);
+        // framebuffer program
+        viewportProgram.use();
+        glUniform1i(glGetUniformLocation(viewportProgram.ID, "screenTexture"), 0);
+        
 
         // camera/view transformation
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)screen_width / (float)screen_height, 0.1f, 100.0f);
         shader.setMat4("projection", projection);
         glm::mat4 view = camera.GetViewMatrix();
         shader.setMat4("view", view);
-        
         // world transformation
         glm::mat4 model = glm::mat4(1.0f);
         shader.setMat4("model", model);
         
-        // game objects
-        // #todelete
-        //
+        // Graph scene with game objects (entities)
         GameObject* obj = &gameObject1;                         // 1st object
         shader.setMat4("model", obj->transform.modelMatrix);
         obj->Draw(shader);
@@ -407,37 +440,12 @@ int main(int, char**)
         gameObject1.transform.rot.y += 20 * deltaTime;
         gameObject2.transform.rot.y += 70 * deltaTime;
         gameObject1.updateSelfAndChildren();
-
-        //
-        //GameObject* lastObject = &gameObject;
-        //while (lastObject->children.size())
-        //{
-        //    shader.setMat4("model", lastObject->transform.modelMatrix);
-        //    lastObject->Draw(shader);
-        //    lastObject = lastObject->children.back().get();
-        //}
-        //gameObject.transform.rot.y += 20 * deltaTime;
-        //gameObject.updateSelfAndChildren();
-        //// gameObject 2
-        //lastObject = &gameObject2;
-        //while (lastObject->children.size())
-        //{
-        //    shader.setMat4("model", lastObject->transform.modelMatrix);
-        //    lastObject->Draw(shader);
-        //    lastObject = lastObject->children.back().get();
-        //}
-        //gameObject2.transform.rot.y += 20 * deltaTime;
-        //gameObject2.updateSelfAndChildren();
-        //#todelete_end
-
-
         // Render nanosuit 3d model
         glm::mat4 modelA = glm::mat4(1.0f);
         modelA = glm::translate(modelA, glm::vec3(0.f, 0.f, -1.f));
         nanosuit_model.Draw(shader);
         icosphere_robot.Draw(shader);
 
-        
         // bind textures
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, diffuseMap);  // diffuse
@@ -471,12 +479,22 @@ int main(int, char**)
         glBindVertexArray(lightCubeVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
+        // Framebuffer part. 2
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        viewportProgram.use();
+        glBindVertexArray(viewportVAO);
+        glDisable(GL_DEPTH_TEST);
+        glBindTexture(GL_TEXTURE_2D, FBO.texture);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
         // ImGui
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwMakeContextCurrent(window);
         glfwSwapBuffers(window);
     }
+
+    
 
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();
@@ -489,6 +507,7 @@ int main(int, char**)
     return 0;
 }
 
+bool wireframe = false;
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
@@ -505,6 +524,18 @@ void processInput(GLFWwindow* window)
         camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
+    {
+        if (!wireframe) {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            wireframe = true;
+        }
+        else {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            wireframe = false;
+        }
+        // does not work xd
+    }
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
     {
         if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED) {
