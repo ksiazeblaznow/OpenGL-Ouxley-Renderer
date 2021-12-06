@@ -45,12 +45,12 @@ struct Transform
 class GameObject : public Model
 {
 private:
-	const char* name;			// unikalna nazwa
+	std::string name;			// unikalna nazwa
 
 public:
 	Transform transform;
 	GameObject* parent = nullptr;
-	std::list<std::unique_ptr<GameObject>> children;
+	std::vector<std::unique_ptr<GameObject>> children;
 
 	GameObject(string const& path, bool gamma = false)
 		: Model(path, gamma) {  }
