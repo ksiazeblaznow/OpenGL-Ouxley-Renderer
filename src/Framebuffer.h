@@ -7,28 +7,23 @@ class Framebuffer
 	int screenWidth;  // #warning stiff value
 	int screenHeight;
 
-	// id do framebuffer'a
-
 public:
-	GLuint FBO;
+	GLuint ID;
 	GLuint RBO;
 	GLuint texture;
 
 	Framebuffer(int scrWidth, int scrHeight)
-		: screenWidth(scrWidth), screenHeight(scrHeight) { Create(); }
+		: screenWidth(scrWidth), screenHeight(scrHeight)
+	{
+		//Create();
+	}
 
 	// create frambuffer
 	void Create()
 	{
 		// framebuffer
-		glGenFramebuffers(1, &FBO);
-		glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER)
-			== GL_FRAMEBUFFER_COMPLETE);
-
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		glDeleteFramebuffers(1, &FBO);
+		glGenFramebuffers(1, &ID);
+		glBindFramebuffer(GL_FRAMEBUFFER, ID);
 
 		// zalaczniki tekstur
 		glGenTextures(1, &texture);
@@ -36,7 +31,9 @@ public:
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenWidth, screenHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
+		// podpiecie tekstury do bufora ramki
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+		
 		/*
 		Jeœli chcesz renderowaæ ca³y ekran do tekstury o mniejszym
 		lub wiêkszym rozmiarze, musisz ponownie wywo³aæ glViewport
@@ -44,26 +41,24 @@ public:
 		tekstury, w przeciwnym razie tylko ma³a czêœæ tekstury lub
 		ekranu zostanie zapisana w teksturze.
 		*/
-
-		// podpiecie tekstury do bufora ramki
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
-		
-		glTexImage2D(
+		/*glTexImage2D(
 			GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, screenWidth, screenHeight, 0,
 			GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, NULL);
 
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-			GL_TEXTURE_2D, texture, 0);
+			GL_TEXTURE_2D, texture, 0);*/
 
 
 		// renderbuffer
 		glGenRenderbuffers(1, &RBO);
 		// powiaz renderbuffer
 		glBindRenderbuffer(GL_RENDERBUFFER, RBO);
-
 		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, screenWidth, screenHeight);
-
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RBO);
+	
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << endl;
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 	
 	// 1. stworz
@@ -71,8 +66,8 @@ public:
 	// ta funkcja wygl¹da jak powtórka z Create() ale by³o przecie¿ po kolei na learnopengl ftw
 	void RenderToTexture()
 	{
-		glGenFramebuffers(1, &FBO);
-		glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+		glGenFramebuffers(1, &ID);
+		glBindFramebuffer(GL_FRAMEBUFFER, ID);
 
 		// tworzymy obraz tekstury, który za³¹czamy
 		// jako za³¹cznik koloru do bufora ramki.

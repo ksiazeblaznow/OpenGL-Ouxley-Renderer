@@ -205,29 +205,15 @@ int main(int, char**)
     // Framebuffer / Viewport shader
     float viewportVertices[] =
     {
-         1.0f,  1.0f, 1.0f, 0.0f,
-        -1.0f, -1.0f, 0.0f, 0.0f,
-        -1.0f,  1.0f, 0.0f, 1.0f,
+        // positions   // texCoords
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  0.0f, 0.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
 
-         1.0f,  1.0f, 1.0f, 1.0f,
-         1.0f, -1.0f, 1.0f, 0.0f
-        - 1.0f,  1.0f, 0.0f, 1.0f
+        -1.0f,  1.0f,  0.0f, 1.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+         1.0f,  1.0f,  1.0f, 1.0f
     };
-
-    Framebuffer FBO(screen_width, screen_height);
-
-    // Framebuffer
-    GLuint viewportVAO, viewportVBO;
-    glGenVertexArrays(1, &viewportVAO);
-    glGenBuffers(1, &viewportVBO);
-    glBindVertexArray(viewportVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, viewportVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(viewportVertices), viewportVertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    
 
     // The white cube
     // second, configure the light's VAO (VBO stays the same; the vertices are the same for the light object which is also a 3D cube)
@@ -240,6 +226,17 @@ int main(int, char**)
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
+    // viewport VAO, VBO
+    GLuint viewportVAO, viewportVBO;
+    glGenVertexArrays(1, &viewportVAO);
+    glGenBuffers(1, &viewportVBO);
+    glBindVertexArray(viewportVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, viewportVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(viewportVertices), viewportVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
     // textures
     //Texture texture("../../res/textures/crate-diffuse.jpg");
@@ -254,13 +251,21 @@ int main(int, char**)
     shader.setFloat("light.linear", 0.09f);
     shader.setFloat("light.quadratic", 0.032f);
     
+    // Framebuffer
+    viewportProgram.use();
+    viewportProgram.setInt("screenTexture", 0);
+    Framebuffer FBO(screen_width, screen_height);
+    FBO.Create();  // stworz framebuffer (linijki 198..218 u JoeyDeVries)
+    // draw as wireframe
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
     // game objects
     // #todelete
     GameObject gameObject1("../../res/models/icosphere-robot.obj");
     GameObject gameObject2("../../res/models/icosphere-robot.obj");
     GameObject gameObject3("../../res/models/icosphere-robot.obj");
 
-    gameObject1.transform.pos.x = 10;
+    //gameObject1.transform.pos.x = 0;
     const float scale = 0.85f;
     gameObject1.transform.scale = { scale,scale,scale };
     {
@@ -395,11 +400,12 @@ int main(int, char**)
         glfwMakeContextCurrent(window);
         glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
-          // framebuffer
-        glBindFramebuffer(GL_FRAMEBUFFER, FBO.FBO);
+        
+        glBindFramebuffer(GL_FRAMEBUFFER, FBO.ID);  // framebuffer
+        glEnable(GL_DEPTH_TEST);  // framebuffer
+
         glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    
         // activate material shader
         shader.use();
         shader.setVec3("light.position", camera.Position);  // if point light used  #TEMP
@@ -412,11 +418,6 @@ int main(int, char**)
         shader.setVec3("light.diffuse",  lightDiffuse);
         shader.setVec3("light.specular", lightSpecular);
         shader.setFloat("material.shininess", 64.0f);
-        // framebuffer program
-        viewportProgram.use();
-        glUniform1i(glGetUniformLocation(viewportProgram.ID, "screenTexture"), 0);
-        
-
         // camera/view transformation
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)screen_width / (float)screen_height, 0.1f, 100.0f);
         shader.setMat4("projection", projection);
@@ -447,43 +448,37 @@ int main(int, char**)
         icosphere_robot.Draw(shader);
 
         // bind textures
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, diffuseMap);  // diffuse
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, specularMap);  // specular        
+        //glActiveTexture(GL_TEXTURE0);
+        //glBindTexture(GL_TEXTURE_2D, diffuseMap);  // diffuse
+        //glActiveTexture(GL_TEXTURE1);
+        //glBindTexture(GL_TEXTURE_2D, specularMap);  // specular        
 
-        // render boxes
-        glBindVertexArray(VAO);
-        for (unsigned int i = 0; i < 10; i++)
-        {
-            // calculate the model matrix for each object and pass it to shader before drawing
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, cubePositions[i]);
-            float angle = (45.0f * i + 30.0f);
-            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
-            shader.setMat4("model", model);
-
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        
         // Draw lamp/white/light cube
-        lightShader.use();
-        lightShader.setMat4("projection", projection);
-        lightShader.setMat4("view", view);
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, lightPos);
-        model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
-        lightShader.setMat4("model", model);
+        //lightShader.use();
+        //lightShader.setMat4("projection", projection);
+        //lightShader.setMat4("view", view);
+        //model = glm::mat4(1.0f);
+        //model = glm::translate(model, lightPos);
+        //model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
+        //lightShader.setMat4("model", model);
 
-        glBindVertexArray(lightCubeVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        //glBindVertexArray(lightCubeVAO);
+        //glDrawArrays(GL_TRIANGLES, 0, 36);
+        //glBindVertexArray(0);
 
         // Framebuffer part. 2
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        //glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        //glClear(GL_COLOR_BUFFER_BIT);  // ??
+
+        //glActiveTexture(GL_TEXTURE2);
+        //glBindTexture(GL_TEXTURE_2D, FBO.texture);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0); // powrót do domyœlnego FBO
+        glDisable(GL_DEPTH_TEST);
+        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+        glClear(GL_COLOR_BUFFER_BIT);
+
         viewportProgram.use();
         glBindVertexArray(viewportVAO);
-        glDisable(GL_DEPTH_TEST);
         glBindTexture(GL_TEXTURE_2D, FBO.texture);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -494,7 +489,13 @@ int main(int, char**)
         glfwSwapBuffers(window);
     }
 
-    
+
+    glDeleteVertexArrays(1, &viewportVAO);
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteVertexArrays(1, &lightCubeVAO);
+    glDeleteBuffers(1, &viewportVBO);
+    glDeleteBuffers(1, &VBO);
+    //glDeleteBuffers(1, &lightCubeVBO);
 
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();
