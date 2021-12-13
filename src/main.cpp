@@ -26,7 +26,7 @@
 
 #include "Shader.h"
 #include "Mesh.h"
-#include "Model.h"
+//#include "Model.h"
 #include "Camera.h"
 #include "GameObject.h"
 #include "Framebuffer.h"
@@ -47,6 +47,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow* window);
 GLuint loadTexture(char const* path);
+void renderSphere();
 
 // settings
 const unsigned int screen_width = 1280;
@@ -118,13 +119,7 @@ int main(int, char**)
     glEnable(GL_DEPTH_TEST);
     //glEnable(GL_CULL_FACE);  // Face Culling
 
-    Shader shader("../../res/shaders/vshader.vs", "../../res/shaders/fshader.fs", nullptr);
-    Shader lightShader("../../res/shaders/lightShader.vs", "../../res/shaders/lightShader.fs", nullptr);
-    Shader viewportProgram("../../res/shaders/Viewport.vert", "../../res/shaders/Viewport.frag", nullptr);
-    // Load model
     Model nanosuit_model("../../res/models/nanosuit/nanosuit.obj");
-    Model icosphere_robot("../../res/models/icosphere-robot.obj");
-
     float vertices[] = {
         // positions          // normals           // texture coords
         -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
@@ -182,7 +177,32 @@ int main(int, char**)
         glm::vec3(-1.3f,  1.0f, -1.5f)
     };
 
+    // PBR
+    Shader shader("../../res/shaders/PBR.vert", "../../res/shaders/PBR.frag", nullptr);
+    shader.use();
+    shader.setVec3("albedo", 0.5f, 0.0f, 0.0f);
+    shader.setFloat("ao", 1.0f);
 
+    // lights
+    // ------
+    glm::vec3 lightPositions[] = {
+        glm::vec3(-10.0f,  10.0f, 10.0f),
+        glm::vec3( 10.0f,  10.0f, 10.0f),
+        glm::vec3(-10.0f, -10.0f, 10.0f),
+        glm::vec3( 10.0f, -10.0f, 10.0f),
+    };
+    glm::vec3 lightColors[] = {
+        glm::vec3(300.0f, 300.0f, 300.0f),
+        glm::vec3(300.0f, 300.0f, 300.0f),
+        glm::vec3(300.0f, 300.0f, 300.0f),
+        glm::vec3(300.0f, 300.0f, 300.0f)
+    };
+    int nrRows    = 7;
+    int nrColumns = 7;
+    float spacing = 2.5;
+
+
+    Shader viewportProgram("../../res/shaders/Viewport.vert", "../../res/shaders/Viewport.frag", nullptr);
     // VAO, VBO buffers
     unsigned int VBO, VAO;
     glGenVertexArrays(1, &VAO);
@@ -201,7 +221,6 @@ int main(int, char**)
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
 
-
     // Framebuffer / Viewport shader
     float viewportVertices[] =
     {
@@ -215,17 +234,6 @@ int main(int, char**)
          1.0f,  1.0f,  1.0f, 1.0f
     };
 
-    // The white cube
-    // second, configure the light's VAO (VBO stays the same; the vertices are the same for the light object which is also a 3D cube)
-    unsigned int lightCubeVAO;
-    glGenVertexArrays(1, &lightCubeVAO);
-    glBindVertexArray(lightCubeVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    // note that we update the lamp's position attribute's stride to reflect the updated buffer data
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
     // viewport VAO, VBO
     GLuint viewportVAO, viewportVBO;
     glGenVertexArrays(1, &viewportVAO);
@@ -237,19 +245,6 @@ int main(int, char**)
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-
-    // textures
-    //Texture texture("../../res/textures/crate-diffuse.jpg");
-    GLuint diffuseMap = loadTexture("../../res/textures/box-diffuse.png");
-    GLuint specularMap = loadTexture("../../res/textures/box-specular.png");
-    
-    // set material-maps/textures to the fragment shader
-    shader.use();
-    shader.setInt("material.diffuse", 0);
-    shader.setInt("material.specular", 1);
-    shader.setFloat("light.constant", 1.0f);
-    shader.setFloat("light.linear", 0.09f);
-    shader.setFloat("light.quadratic", 0.032f);
     
     // Framebuffer
     viewportProgram.use();
@@ -264,6 +259,8 @@ int main(int, char**)
     GameObject gameObject1("../../res/models/icosphere-robot.obj");
     GameObject gameObject2("../../res/models/icosphere-robot.obj");
     GameObject gameObject3("../../res/models/icosphere-robot.obj");
+    
+    Model telephoneModel("../../res/models/vintage-telephone/scene.gltf");
 
     //gameObject1.transform.pos.x = 0;
     const float scale = 0.85f;
@@ -403,49 +400,82 @@ int main(int, char**)
         
         glBindFramebuffer(GL_FRAMEBUFFER, FBO.ID);  // framebuffer
         glEnable(GL_DEPTH_TEST);  // framebuffer
-
         glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
         // activate material shader
         shader.use();
-        shader.setVec3("light.position", camera.Position);  // if point light used  #TEMP
-        shader.setVec3("light.direction", camera.Front);  // if directional light used  #TEMP
-        shader.setFloat("light.cutOff", glm::cos(glm::radians(12.5f)));
-        shader.setFloat("light.outerCutOff", glm::cos(glm::radians(17.5f)));
-        shader.setVec3("viewPos", camera.Position);
-        // light properties
-        shader.setVec3("light.ambient",  lightAmbient);
-        shader.setVec3("light.diffuse",  lightDiffuse);
-        shader.setVec3("light.specular", lightSpecular);
-        shader.setFloat("material.shininess", 64.0f);
+
         // camera/view transformation
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)screen_width / (float)screen_height, 0.1f, 100.0f);
         shader.setMat4("projection", projection);
         glm::mat4 view = camera.GetViewMatrix();
         shader.setMat4("view", view);
         // world transformation
+        /*glm::mat4 model = glm::mat4(1.0f);
+        shader.setMat4("model", model);*/
+        shader.setVec3("camPos", camera.Position);
+        
+        // render rows*column number of spheres with varying metallic/roughness values scaled by rows and columns respectively
         glm::mat4 model = glm::mat4(1.0f);
-        shader.setMat4("model", model);
+        for (int row = 0; row < nrRows; ++row)
+        {
+            shader.setFloat("metallic", (float)row / (float)nrRows);
+            for (int col = 0; col < nrColumns; ++col)
+            {
+                // we clamp the roughness to 0.05 - 1.0 as perfectly smooth surfaces (roughness of 0.0) tend to look a bit off
+                // on direct lighting.
+                shader.setFloat("roughness", glm::clamp((float)col / (float)nrColumns, 0.05f, 1.0f));
+
+                model = glm::mat4(1.0f);
+                model = glm::translate(model, glm::vec3(
+                    (col - (nrColumns / 2)) * spacing,
+                    (row - (nrRows / 2)) * spacing,
+                    0.0f
+                ));
+                shader.setMat4("model", model);
+                renderSphere();
+            }
+        }
+
+        // render light source (simply re-render sphere at light positions)
+        // this looks a bit off as we use the same shader, but it'll make their positions obvious and 
+        // keeps the codeprint small.
+        for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
+        {
+            glm::vec3 newPos = lightPositions[i] + glm::vec3(sin(glfwGetTime() * 5.0) * 5.0, 0.0, 0.0);
+            newPos = lightPositions[i];
+            shader.setVec3("lightPositions[" + std::to_string(i) + "]", newPos);
+            shader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
+
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, newPos);
+            model = glm::scale(model, glm::vec3(0.5f));
+            shader.setMat4("model", model);
+            renderSphere();
+        }
+
+        telephoneModel.Draw(shader);
         
         // Graph scene with game objects (entities)
-        GameObject* obj = &gameObject1;                         // 1st object
-        shader.setMat4("model", obj->transform.modelMatrix);
-        obj->Draw(shader);
-        obj = obj->children.back().get();                       // 2nd object
-        shader.setMat4("model", obj->transform.modelMatrix);
-        obj->Draw(shader);
-        obj = obj->children.back().get();                       // 3rd object
-        shader.setMat4("model", obj->transform.modelMatrix);
-        obj->Draw(shader);
+        //GameObject* obj = &gameObject1;                         // 1st object
+        //shader.setMat4("model", obj->transform.modelMatrix);
+        //obj->Draw(shader);
+        //obj = obj->children.back().get();                       // 2nd object
+        //shader.setMat4("model", obj->transform.modelMatrix);
+        //obj->Draw(shader);
+        //obj = obj->children.back().get();                       // 3rd object
+        //shader.setMat4("model", obj->transform.modelMatrix);
+        //obj->Draw(shader);
 
-        gameObject1.transform.rot.y += 20 * deltaTime;
-        gameObject2.transform.rot.y += 70 * deltaTime;
-        gameObject1.updateSelfAndChildren();
-        // Render nanosuit 3d model
-        glm::mat4 modelA = glm::mat4(1.0f);
-        modelA = glm::translate(modelA, glm::vec3(0.f, 0.f, -1.f));
-        nanosuit_model.Draw(shader);
-        icosphere_robot.Draw(shader);
+        //gameObject1.transform.rot.y += 20 * deltaTime;
+        //gameObject2.transform.rot.y += 70 * deltaTime;
+        //gameObject1.updateSelfAndChildren();
+        //// Render nanosuit 3d model
+        //glm::mat4 modelA = glm::mat4(1.0f);
+        //modelA = glm::translate(modelA, glm::vec3(0.f, 0.f, -1.f));
+        //nanosuit_model.Draw(shader);
+        //icosphere_robot.Draw(shader);
 
         // bind textures
         //glActiveTexture(GL_TEXTURE0);
@@ -492,7 +522,6 @@ int main(int, char**)
 
     glDeleteVertexArrays(1, &viewportVAO);
     glDeleteVertexArrays(1, &VAO);
-    glDeleteVertexArrays(1, &lightCubeVAO);
     glDeleteBuffers(1, &viewportVBO);
     glDeleteBuffers(1, &VBO);
     //glDeleteBuffers(1, &lightCubeVBO);
@@ -582,6 +611,101 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
     lastY = ypos;
 
     camera.ProcessMouseMovement(xoffset, yoffset);
+}
+
+unsigned int sphereVAO = 0;
+unsigned int indexCount;
+void renderSphere()
+{
+    if (sphereVAO == 0)
+    {
+        glGenVertexArrays(1, &sphereVAO);
+
+        unsigned int vbo, ebo;
+        glGenBuffers(1, &vbo);
+        glGenBuffers(1, &ebo);
+
+        std::vector<glm::vec3> positions;
+        std::vector<glm::vec2> uv;
+        std::vector<glm::vec3> normals;
+        std::vector<unsigned int> indices;
+
+        const unsigned int X_SEGMENTS = 64;
+        const unsigned int Y_SEGMENTS = 64;
+        const float PI = 3.14159265359;
+        for (unsigned int x = 0; x <= X_SEGMENTS; ++x)
+        {
+            for (unsigned int y = 0; y <= Y_SEGMENTS; ++y)
+            {
+                float xSegment = (float)x / (float)X_SEGMENTS;
+                float ySegment = (float)y / (float)Y_SEGMENTS;
+                float xPos = std::cos(xSegment * 2.0f * PI) * std::sin(ySegment * PI);
+                float yPos = std::cos(ySegment * PI);
+                float zPos = std::sin(xSegment * 2.0f * PI) * std::sin(ySegment * PI);
+
+                positions.push_back(glm::vec3(xPos, yPos, zPos));
+                uv.push_back(glm::vec2(xSegment, ySegment));
+                normals.push_back(glm::vec3(xPos, yPos, zPos));
+            }
+        }
+
+        bool oddRow = false;
+        for (unsigned int y = 0; y < Y_SEGMENTS; ++y)
+        {
+            if (!oddRow) // even rows: y == 0, y == 2; and so on
+            {
+                for (unsigned int x = 0; x <= X_SEGMENTS; ++x)
+                {
+                    indices.push_back(y * (X_SEGMENTS + 1) + x);
+                    indices.push_back((y + 1) * (X_SEGMENTS + 1) + x);
+                }
+            }
+            else
+            {
+                for (int x = X_SEGMENTS; x >= 0; --x)
+                {
+                    indices.push_back((y + 1) * (X_SEGMENTS + 1) + x);
+                    indices.push_back(y * (X_SEGMENTS + 1) + x);
+                }
+            }
+            oddRow = !oddRow;
+        }
+        indexCount = indices.size();
+
+        std::vector<float> data;
+        for (unsigned int i = 0; i < positions.size(); ++i)
+        {
+            data.push_back(positions[i].x);
+            data.push_back(positions[i].y);
+            data.push_back(positions[i].z);
+            if (normals.size() > 0)
+            {
+                data.push_back(normals[i].x);
+                data.push_back(normals[i].y);
+                data.push_back(normals[i].z);
+            }
+            if (uv.size() > 0)
+            {
+                data.push_back(uv[i].x);
+                data.push_back(uv[i].y);
+            }
+        }
+        glBindVertexArray(sphereVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(float), &data[0], GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);
+        unsigned int stride = (3 + 2 + 3) * sizeof(float);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6 * sizeof(float)));
+    }
+
+    glBindVertexArray(sphereVAO);
+    glDrawElements(GL_TRIANGLE_STRIP, indexCount, GL_UNSIGNED_INT, 0);
 }
 
 GLuint loadTexture(char const* path)

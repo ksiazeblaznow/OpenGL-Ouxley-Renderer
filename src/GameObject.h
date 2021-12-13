@@ -1,10 +1,11 @@
 #pragma once
 #include <glm/glm.hpp>
-//#include "Model.h"
+#include "Model.h"
 #include <list>
 #include <memory>
+#include <string>
 
-class Model;
+//class Model;
 
 struct Transform
 {
@@ -20,8 +21,8 @@ struct Transform
 	{
 		const glm::mat4 transformX
 			= glm::rotate(glm::mat4(1.0f),
-						  glm::radians(rot.x),
-						  glm::vec3(1.f, 0.f, 0.f));
+				glm::radians(rot.x),
+				glm::vec3(1.f, 0.f, 0.f));
 		const glm::mat4 transformY
 			= glm::rotate(glm::mat4(1.0f),
 				glm::radians(rot.y),
@@ -45,14 +46,14 @@ struct Transform
 class GameObject : public Model
 {
 private:
-	std::string name;			// unikalna nazwa
+	const char* name;			// unikalna nazwa
 
 public:
 	Transform transform;
 	GameObject* parent = nullptr;
-	std::vector<std::unique_ptr<GameObject>> children;
+	std::list<std::unique_ptr<GameObject>> children;
 
-	GameObject(string const& path, bool gamma = false)
+	GameObject(std::string const& path, bool gamma = false)
 		: Model(path, gamma) {  }
 	//~GameObject();
 
