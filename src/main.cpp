@@ -180,8 +180,18 @@ int main(int, char**)
     // PBR
     Shader shader("../../res/shaders/PBR.vert", "../../res/shaders/PBR.frag", nullptr);
     shader.use();
-    shader.setVec3("albedo", 0.5f, 0.0f, 0.0f);
-    shader.setFloat("ao", 1.0f);
+    shader.setInt("albedoMap", 0);
+    shader.setInt("normalMap", 1);
+    shader.setInt("metallicMap", 2);
+    shader.setInt("roughnessMap", 3);
+    shader.setInt("aoMap", 4);
+
+    GLuint    albedo = loadTexture("../../res/textures/TMetal/Metal_Color_2K.jpg");
+    GLuint    normal = loadTexture("../../res/textures/TMetal/Metal_Normal_2K.jpg");
+    GLuint  metallic = loadTexture("../../res/textures/TMetal/Metal_Metalness_2K.jpg");
+    GLuint roughness = loadTexture("../../res/textures/TMetal/Metal_Roughness_2K.jpg");
+    GLuint        ao = loadTexture("../../res/textures/TMetal/Metal_AO_2K.jpg");
+
 
     // lights
     // ------
@@ -317,6 +327,11 @@ int main(int, char**)
     glm::vec3 lightDiffuse  (1.f, 1.f, 1.f);
     glm::vec3 lightSpecular (1.f, 1.f, 1.f);
 
+    // initialize static shader uniforms before rendering
+    // --------------------------------------------------
+    glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)screen_width / (float)screen_height, 0.1f, 100.0f);
+    shader.use();
+    shader.setMat4("projection", projection);
 
     /*glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);*/
@@ -405,17 +420,25 @@ int main(int, char**)
 
         // activate material shader
         shader.use();
-
-        // camera/view transformation
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)screen_width / (float)screen_height, 0.1f, 100.0f);
-        shader.setMat4("projection", projection);
         glm::mat4 view = camera.GetViewMatrix();
         shader.setMat4("view", view);
-        // world transformation
-        /*glm::mat4 model = glm::mat4(1.0f);
-        shader.setMat4("model", model);*/
         shader.setVec3("camPos", camera.Position);
         
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, albedo);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, normal);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, metallic);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, roughness);
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_2D, ao);
+
+        // #to_delete
+        /*glActiveTexture(GL_TEXTURE5);
+        glBindTexture(GL_TEXTURE_2D, FBO.texture);*/
+
         // render rows*column number of spheres with varying metallic/roughness values scaled by rows and columns respectively
         glm::mat4 model = glm::mat4(1.0f);
         for (int row = 0; row < nrRows; ++row)
@@ -455,7 +478,7 @@ int main(int, char**)
             renderSphere();
         }
 
-        telephoneModel.Draw(shader);
+        //telephoneModel.Draw(shader);
         
         // Graph scene with game objects (entities)
         //GameObject* obj = &gameObject1;                         // 1st object
