@@ -46,7 +46,7 @@ struct Transform
 class GameObject : public Model
 {
 private:
-	const char* name;			// unikalna nazwa
+	//const char* name;			// unikalna nazwa
 
 public:
 	Transform transform;

@@ -411,10 +411,10 @@ int main(int, char**)
         int display_w, display_h;
         glfwMakeContextCurrent(window);
         glfwGetFramebufferSize(window, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
         
         glBindFramebuffer(GL_FRAMEBUFFER, FBO.ID);  // framebuffer
         glEnable(GL_DEPTH_TEST);  // framebuffer
+        glViewport(0, 0, display_w, display_h);
         glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -434,10 +434,6 @@ int main(int, char**)
         glBindTexture(GL_TEXTURE_2D, roughness);
         glActiveTexture(GL_TEXTURE4);
         glBindTexture(GL_TEXTURE_2D, ao);
-
-        // #to_delete
-        /*glActiveTexture(GL_TEXTURE5);
-        glBindTexture(GL_TEXTURE_2D, FBO.texture);*/
 
         // render rows*column number of spheres with varying metallic/roughness values scaled by rows and columns respectively
         glm::mat4 model = glm::mat4(1.0f);
@@ -532,6 +528,7 @@ int main(int, char**)
 
         viewportProgram.use();
         glBindVertexArray(viewportVAO);
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, FBO.texture);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
