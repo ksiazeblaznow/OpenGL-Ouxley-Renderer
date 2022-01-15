@@ -6,11 +6,11 @@ in vec3 WorldPos;
 in vec3 Normal;
 
 // material parameters
-uniform sampler2D albedoMap;
-uniform sampler2D normalMap;
-uniform sampler2D metallicMap;
-uniform sampler2D roughnessMap;
-uniform sampler2D aoMap;
+layout(binding = 3) uniform sampler2D albedoMap;
+layout(binding = 4) uniform sampler2D normalMap;
+layout(binding = 5) uniform sampler2D metallicMap;
+layout(binding = 6) uniform sampler2D roughnessMap;
+layout(binding = 7) uniform sampler2D aoMap;
 
 // IBL
 uniform samplerCube irradianceMap;

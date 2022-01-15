@@ -56,7 +56,7 @@ const unsigned int screen_width = 1280;
 const unsigned int screen_height = 720;
 
 // Camera
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera camera(glm::vec3(0.0f, 0.0f, -2.0f));
 float lastX = screen_width / 2.0f;
 float lastY = screen_height / 2.0f;
 bool firstMouse = true;
@@ -134,6 +134,59 @@ int main(int, char**)
     Shader prefilterShader("../../res/shaders/cubemap.vert", "../../res/shaders/prefilter.frag");
     Shader brdfShader("../../res/shaders/brdf.vert", "../../res/shaders/brdf.frag");
     Shader backgroundShader("../../res/shaders/background.vert", "../../res/shaders/background.frag");
+    // instance shader
+    Shader instanceShader("../../res/shaders/Instancing.vert", "../../res/shaders/Instancing.frag");
+
+    // instance list
+    // -------------
+    unsigned int amount = 1000;
+    glm::mat4* modelMatrices;
+    modelMatrices = new glm::mat4[amount];
+    srand(static_cast<unsigned int>(glfwGetTime())); // initialize random seed
+    for (unsigned int i = 0; i < amount; i++)  // translate model
+    {
+        glm::mat4 model = glm::mat4(1.0f);
+
+        float x = rand() % 10;
+        float y = rand() % 10;
+
+        model = glm::translate(model, glm::vec3(x, y, 0.0f));
+
+        modelMatrices[i] = model;
+    }   
+    unsigned int buffer;
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    glBufferData(GL_ARRAY_BUFFER, amount * sizeof(glm::mat4), &modelMatrices[0], GL_STATIC_DRAW);
+
+    Model telephoneModel("../../res/models/vintage-telephone-obj/Telephone.obj");
+    Model defaultCube("../../res/models/defaultCube.obj");
+
+    // set transformation matrices as an instance vertex attribute (with divisor 1)
+    // note: we're cheating a little by taking the, now publicly declared, VAO of the model's mesh(es) and adding new vertexAttribPointers
+    // normally you'd want to do this in a more organized fashion, but for learning purposes this will do.
+    // -----------------------------------------------------------------------------------------------------------------------------------
+    for (unsigned int i = 0; i < defaultCube.meshes.size(); i++)
+    {
+        unsigned int instanceVAO = defaultCube.meshes[i].VAO;
+        glBindVertexArray(instanceVAO);
+        // set attribute pointers for matrix (4 times vec4)
+        glEnableVertexAttribArray(3);
+        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)0);
+        glEnableVertexAttribArray(4);
+        glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(1 * sizeof(glm::vec4)));
+        glEnableVertexAttribArray(5);
+        glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(2 * sizeof(glm::vec4)));
+        glEnableVertexAttribArray(6);
+        glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(3 * sizeof(glm::vec4)));
+
+        glVertexAttribDivisor(3, 1);
+        glVertexAttribDivisor(4, 1);
+        glVertexAttribDivisor(5, 1);
+        glVertexAttribDivisor(6, 1);
+
+        glBindVertexArray(0);
+    }
 
     shader.use();
     shader.setInt("irradianceMap", 0);
@@ -144,6 +197,7 @@ int main(int, char**)
     shader.setInt("metallicMap", 5);
     shader.setInt("roughnessMap", 6);
     shader.setInt("aoMap", 7);
+    // instance shader - shouldn't he has the same values set?
 
     backgroundShader.use();
     backgroundShader.setInt("environmentMap", 0);
@@ -154,6 +208,18 @@ int main(int, char**)
     GLuint  metallic = loadTexture("../../res/textures/TMetal/Metal_Metalness_2K.jpg");
     GLuint roughness = loadTexture("../../res/textures/TMetal/Metal_Roughness_2K.jpg");
     GLuint        ao = loadTexture("../../res/textures/TMetal/Metal_AO_2K.jpg");
+    // panels
+    GLuint    PanelsAlbedo = loadTexture("../../res/textures/TPanels/Panels_Color_2K.jpg");
+    GLuint    PanelsNormal = loadTexture("../../res/textures/TPanels/Panels_Normal_2K.jpg");
+    GLuint  PanelsMetallic = loadTexture("../../res/textures/TPanels/Panels_Metalness_2K.jpg");
+    GLuint PanelsRoughness = loadTexture("../../res/textures/TPanels/Panels_Roughness_2K.jpg");
+    GLuint        PanelsAo = loadTexture("../../res/textures/TPanels/Panels_AO_2K.jpg");
+    // telephone model
+    GLuint    TelephoneAlbedo = loadTexture("../../res/models/vintage-telephone-obj/Telephone_C.png");
+    GLuint    TelephoneNormal = loadTexture("../../res/models/vintage-telephone-obj/Telephone_N.png");
+    GLuint  TelephoneMetallic = loadTexture("../../res/models/vintage-telephone-obj/Telephone_M.png");
+    GLuint TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telephone_R.png");
+    GLuint        TelephoneAo = loadTexture("../../res/models/vintage-telephone-obj/Telephone_AO.png");
 
     // lights
     // ------
@@ -381,8 +447,6 @@ int main(int, char**)
     GameObject gameObject1("../../res/models/icosphere-robot.obj");
     GameObject gameObject2("../../res/models/icosphere-robot.obj");
     GameObject gameObject3("../../res/models/icosphere-robot.obj");
-    
-    Model telephoneModel("../../res/models/vintage-telephone/scene.gltf");
 
     //gameObject1.transform.pos.x = 0;
     const float scale = 0.85f;
@@ -535,22 +599,10 @@ int main(int, char**)
         glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // activate material shader
-        shader.use();
-        glm::mat4 model = glm::mat4(1.0f);
-        glm::mat4 view = camera.GetViewMatrix();
-        shader.setMat4("view", view);
-        shader.setVec3("camPos", camera.Position);
-
-        // bind pre-computed IBL data
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
-        
         // metal material
+        //glBindTextureUnit(3, albedo);
+        // https://www.khronos.org/opengl/wiki/Layout_Qualifier_(GLSL)#Binding_points
+        // not working by now
         glActiveTexture(GL_TEXTURE3);
         glBindTexture(GL_TEXTURE_2D, albedo);
         glActiveTexture(GL_TEXTURE4);
@@ -562,27 +614,73 @@ int main(int, char**)
         glActiveTexture(GL_TEXTURE7);
         glBindTexture(GL_TEXTURE_2D, ao);
 
+        // instance rendering
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)screen_width / (float)screen_height, 0.1f, 1000.0f);
+        glm::mat4 view = camera.GetViewMatrix();
+        instanceShader.use();
+        instanceShader.setMat4("projection", projection);
+        instanceShader.setMat4("view", view);
+        instanceShader.setInt("texture_diffuse1", 0);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, albedo); // note: we also made the textures_loaded vector public (instead of private) from the model class.
+        /*for (unsigned int i = 0; i < defaultCube.meshes.size(); i++)
+        {
+            glBindVertexArray(defaultCube.meshes[i].VAO);
+            glDrawElementsInstanced(GL_TRIANGLES, static_cast<unsigned int>(defaultCube.meshes[i].indices.size()), GL_UNSIGNED_INT, 0, amount);
+            glBindVertexArray(0);
+        }*/
+
+        // activate material shader
+        shader.use();
+        glm::mat4 model = glm::mat4(1.0f);
+        projection = glm::perspective(glm::radians(45.0f), (float)screen_width / (float)screen_height, 0.1f, 1000.0f);
+        view = camera.GetViewMatrix();
+        shader.setMat4("view", view);
+        shader.setVec3("camPos", camera.Position);
+
+        // bind pre-computed IBL data
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
+        
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(-5.0, 0.0, 2.0));
+        model = glm::translate(model, glm::vec3(-6.0, 0.0, 2.0));
         shader.setMat4("model", model);
         renderSphere();
+        nanosuit_model.Draw(shader);
 
-        // render light source (simply re-render sphere at light positions)
-        // this looks a bit off as we use the same shader, but it'll make their positions obvious and 
-        // keeps the codeprint small.
-        for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
-        {
-            glm::vec3 newPos = lightPositions[i] + glm::vec3(sin(glfwGetTime() * 5.0) * 5.0, 0.0, 0.0);
-            newPos = lightPositions[i];
-            shader.setVec3("lightPositions[" + std::to_string(i) + "]", newPos);
-            shader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
+        // load telephone model
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, TelephoneAlbedo);
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_2D, TelephoneNormal);
+        glActiveTexture(GL_TEXTURE5);
+        glBindTexture(GL_TEXTURE_2D, TelephoneMetallic);
+        glActiveTexture(GL_TEXTURE6);
+        glBindTexture(GL_TEXTURE_2D, TelephoneRoughness);
+        glActiveTexture(GL_TEXTURE7);
+        glBindTexture(GL_TEXTURE_2D, TelephoneAo);
+        telephoneModel.Draw(shader);
 
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, newPos);
-            model = glm::scale(model, glm::vec3(0.5f));
-            shader.setMat4("model", model);
-            renderSphere();
-        }
+        // render sphere with another material
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(-1.0, 0.0, 2.0));
+        shader.setMat4("model", model);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, PanelsAlbedo);
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_2D, PanelsNormal);
+        glActiveTexture(GL_TEXTURE5);
+        glBindTexture(GL_TEXTURE_2D, PanelsMetallic);
+        glActiveTexture(GL_TEXTURE6);
+        glBindTexture(GL_TEXTURE_2D, PanelsRoughness);
+        glActiveTexture(GL_TEXTURE7);
+        glBindTexture(GL_TEXTURE_2D, PanelsAo);
+        renderSphere();
+
 
         // render skybox (render as last to prevent overdraw)
         backgroundShader.use();
@@ -594,58 +692,6 @@ int main(int, char**)
         //glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap); // display irradiance map
         //glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap); // display prefilter map
         renderCube();
-
-        //telephoneModel.Draw(shader);
-        
-        // Graph scene with game objects (entities)
-        //GameObject* obj = &gameObject1;                         // 1st object
-        //shader.setMat4("model", obj->transform.modelMatrix);
-        //obj->Draw(shader);
-        //obj = obj->children.back().get();                       // 2nd object
-        //shader.setMat4("model", obj->transform.modelMatrix);
-        //obj->Draw(shader);
-        //obj = obj->children.back().get();                       // 3rd object
-        //shader.setMat4("model", obj->transform.modelMatrix);
-        //obj->Draw(shader);
-
-        //gameObject1.transform.rot.y += 20 * deltaTime;
-        //gameObject2.transform.rot.y += 70 * deltaTime;
-        //gameObject1.updateSelfAndChildren();
-        //// Render nanosuit 3d model
-        //glm::mat4 modelA = glm::mat4(1.0f);
-        //modelA = glm::translate(modelA, glm::vec3(0.f, 0.f, -1.f));
-        //nanosuit_model.Draw(shader);
-        //icosphere_robot.Draw(shader);
-
-        // bind textures
-        //glActiveTexture(GL_TEXTURE0);
-        //glBindTexture(GL_TEXTURE_2D, diffuseMap);  // diffuse
-        //glActiveTexture(GL_TEXTURE1);
-        //glBindTexture(GL_TEXTURE_2D, specularMap);  // specular        
-
-        // Draw lamp/white/light cube
-        //lightShader.use();
-        //lightShader.setMat4("projection", projection);
-        //lightShader.setMat4("view", view);
-        //model = glm::mat4(1.0f);
-        //model = glm::translate(model, lightPos);
-        //model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
-        //lightShader.setMat4("model", model);
-
-        //glBindVertexArray(lightCubeVAO);
-        //glDrawArrays(GL_TRIANGLES, 0, 36);
-        //glBindVertexArray(0);
-
-        // Framebuffer part. 2
-        //glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        //glClear(GL_COLOR_BUFFER_BIT);  // ??
-
-        //glActiveTexture(GL_TEXTURE2);
-        //glBindTexture(GL_TEXTURE_2D, FBO.texture);
-        //glBindFramebuffer(GL_FRAMEBUFFER, 0); // powrót do domyœlnego FBO
-        //glDisable(GL_DEPTH_TEST);
-        /*glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-        glClear(GL_COLOR_BUFFER_BIT);*/
 
         // ImGui
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
