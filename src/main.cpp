@@ -1,7 +1,3 @@
-// dear imgui: standalone example application for GLFW + OpenGL 3, using programmable pipeline
-// If you are new to dear imgui, see examples/README.txt and documentation at the top of imgui.cpp.
-// (GLFW is a cross-platform general purpose library for handling windows, inputs, OpenGL/Vulkan graphics context creation, etc.)
-
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -21,22 +17,15 @@
 #endif
 
 #include <GLFW/glfw3.h> // Include glfw3.h after our OpenGL definitions
-
-// renderer code
-
 #include "Shader.h"
 #include "Mesh.h"
-//#include "Model.h"
 #include "Camera.h"
 #include "GameObject.h"
 #include "Framebuffer.h"
-//#include "Game.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
-
 
 static void glfw_error_callback(int error, const char* description)
 {
@@ -55,19 +44,17 @@ void renderQuad();
 const unsigned int screen_width = 1280;
 const unsigned int screen_height = 720;
 
-// Camera
-Camera camera(glm::vec3(0.0f, 0.0f, -2.0f));
-float lastX = screen_width / 2.0f;
-float lastY = screen_height / 2.0f;
+// camera
+Camera camera(glm::vec3(0.0f, 0.0f, 155.0f));
+float lastX = (float)screen_width / 2.0;
+float lastY = (float)screen_height / 2.0;
 bool firstMouse = true;
 
 // timing
-float deltaTime = 0.0f;	// time between current frame and last frame
+float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-
-// main
-int main(int, char**)
+int main()
 {
     // Setup window
     glfwSetErrorCallback(glfw_error_callback);
@@ -98,6 +85,9 @@ int main(int, char**)
 
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 
     // tell GLFW to capture our mouse
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -117,7 +107,8 @@ int main(int, char**)
         return 1;
     }
 
-    // Load Resources
+    // configure global opengl state
+    // 
     glEnable(GL_DEPTH_TEST);
     // set depth function to less than AND equal for skybox depth trick.
     glDepthFunc(GL_LEQUAL);
@@ -125,56 +116,80 @@ int main(int, char**)
     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
     //glEnable(GL_CULL_FACE);  // Face Culling
 
-    Model nanosuit_model("../../res/models/nanosuit/nanosuit.obj");
-
-    // PBR
+    // build and compile shaders
+    // -------------------------
     Shader shader("../../res/shaders/PBR.vert", "../../res/shaders/PBR.frag");
+    Shader asteroidShader("../../res/shaders/asteroids.vert", "../../res/shaders/asteroids.frag");
+    Shader planetShader("../../res/shaders/planet.vert", "../../res/shaders/planet.frag");
     Shader equirectangularToCubemapShader("../../res/shaders/cubemap.vert", "../../res/shaders/equirectangular_to_cubemap.frag");
     Shader irradianceShader("../../res/shaders/cubemap.vert", "../../res/shaders/irradiance_convolution.frag");
     Shader prefilterShader("../../res/shaders/cubemap.vert", "../../res/shaders/prefilter.frag");
     Shader brdfShader("../../res/shaders/brdf.vert", "../../res/shaders/brdf.frag");
     Shader backgroundShader("../../res/shaders/background.vert", "../../res/shaders/background.frag");
-    // instance shader
+    // instance shader (not working)
     Shader instanceShader("../../res/shaders/Instancing.vert", "../../res/shaders/Instancing.frag");
 
-    // instance list
-    // -------------
-    unsigned int amount = 1000;
+    // Load models and resources
+    // -------------------------
+    //Model nanosuit_model("../../res/models/nanosuit/nanosuit.obj");
+    Model rock("../../res/models/asteroid/scene.gltf");
+    Model planet("../../res/models/jupiter/scene.gltf");
+    Model telephoneModel("../../res/models/vintage-telephone-obj/Telephone.obj");
+    Model defaultCube("../../res/models/defaultCube.obj");
+
+    // generate a large list of semi-random model transformation matrices
+    // ------------------------------------------------------------------
+    unsigned int amount = 10000;
     glm::mat4* modelMatrices;
     modelMatrices = new glm::mat4[amount];
     srand(static_cast<unsigned int>(glfwGetTime())); // initialize random seed
-    for (unsigned int i = 0; i < amount; i++)  // translate model
+    float radius = 150.0;
+    float offset = 25.0f;
+    for (unsigned int i = 0; i < amount; i++)
     {
         glm::mat4 model = glm::mat4(1.0f);
+        // 1. translation: displace along circle with 'radius' in range [-offset, offset]
+        float angle = (float)i / (float)amount * 360.0f;
+        float displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float x = sin(angle) * radius + displacement;
+        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float y = displacement * 0.4f; // keep height of asteroid field smaller compared to width of x and z
+        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float z = cos(angle) * radius + displacement;
+        model = glm::translate(model, glm::vec3(x, y, z));
 
-        float x = rand() % 10;
-        float y = rand() % 10;
+        // 2. scale: Scale between 0.05 and 0.25f
+        float scale = static_cast<float>((rand() % 20) / 100.0 + 0.05);
+        model = glm::scale(model, glm::vec3(scale));
 
-        model = glm::translate(model, glm::vec3(x, y, 0.0f));
+        // 3. rotation: add random rotation around a (semi)randomly picked rotation axis vector
+        float rotAngle = static_cast<float>((rand() % 360));
+        model = glm::rotate(model, rotAngle, glm::vec3(0.4f, 0.6f, 0.8f));
 
+        // 4. now add to list of matrices
         modelMatrices[i] = model;
-    }   
+    }
+
+    // configure instanced array
+    // -------------------------
     unsigned int buffer;
     glGenBuffers(1, &buffer);
     glBindBuffer(GL_ARRAY_BUFFER, buffer);
     glBufferData(GL_ARRAY_BUFFER, amount * sizeof(glm::mat4), &modelMatrices[0], GL_STATIC_DRAW);
 
-    Model telephoneModel("../../res/models/vintage-telephone-obj/Telephone.obj");
-    Model defaultCube("../../res/models/defaultCube.obj");
-
     // set transformation matrices as an instance vertex attribute (with divisor 1)
     // note: we're cheating a little by taking the, now publicly declared, VAO of the model's mesh(es) and adding new vertexAttribPointers
     // normally you'd want to do this in a more organized fashion, but for learning purposes this will do.
     // -----------------------------------------------------------------------------------------------------------------------------------
-    for (unsigned int i = 0; i < defaultCube.meshes.size(); i++)
+    for (unsigned int i = 0; i < rock.meshes.size(); i++)
     {
-        unsigned int instanceVAO = defaultCube.meshes[i].VAO;
-        glBindVertexArray(instanceVAO);
+        unsigned int VAO = rock.meshes[i].VAO;
+        glBindVertexArray(VAO);
         // set attribute pointers for matrix (4 times vec4)
         glEnableVertexAttribArray(3);
         glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)0);
         glEnableVertexAttribArray(4);
-        glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(1 * sizeof(glm::vec4)));
+        glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4)));
         glEnableVertexAttribArray(5);
         glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(2 * sizeof(glm::vec4)));
         glEnableVertexAttribArray(6);
@@ -188,6 +203,7 @@ int main(int, char**)
         glBindVertexArray(0);
     }
 
+    // PBR
     shader.use();
     shader.setInt("irradianceMap", 0);
     shader.setInt("prefilterMap", 1);
@@ -197,10 +213,6 @@ int main(int, char**)
     shader.setInt("metallicMap", 5);
     shader.setInt("roughnessMap", 6);
     shader.setInt("aoMap", 7);
-    // instance shader - shouldn't he has the same values set?
-
-    backgroundShader.use();
-    backgroundShader.setInt("environmentMap", 0);
 
     // Load PBR materials
     GLuint    albedo = loadTexture("../../res/textures/TMetal/Metal_Color_2K.jpg");
@@ -221,23 +233,9 @@ int main(int, char**)
     GLuint TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telephone_R.png");
     GLuint        TelephoneAo = loadTexture("../../res/models/vintage-telephone-obj/Telephone_AO.png");
 
-    // lights
-    // ------
-    glm::vec3 lightPositions[] = {
-        glm::vec3(-10.0f,  10.0f, 10.0f),
-        glm::vec3( 10.0f,  10.0f, 10.0f),
-        glm::vec3(-10.0f, -10.0f, 10.0f),
-        glm::vec3( 10.0f, -10.0f, 10.0f),
-    };
-    glm::vec3 lightColors[] = {
-        glm::vec3(300.0f, 300.0f, 300.0f),
-        glm::vec3(300.0f, 300.0f, 300.0f),
-        glm::vec3(300.0f, 300.0f, 300.0f),
-        glm::vec3(300.0f, 300.0f, 300.0f)
-    };
-    /*int nrRows    = 7;
-    int nrColumns = 7;
-    float spacing = 2.5;*/
+    // SkyBox
+    backgroundShader.use();
+    backgroundShader.setInt("environmentMap", 0);
 
     // pbr: framebuffer
     // ----------------
@@ -442,31 +440,8 @@ int main(int, char**)
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    // game objects
-    // #todelete
-    GameObject gameObject1("../../res/models/icosphere-robot.obj");
-    GameObject gameObject2("../../res/models/icosphere-robot.obj");
-    GameObject gameObject3("../../res/models/icosphere-robot.obj");
-
-    //gameObject1.transform.pos.x = 0;
-    const float scale = 0.85f;
-    gameObject1.transform.scale = { scale,scale,scale };
-    {
-        //
-        gameObject1.AddChild(&gameObject2);  // involves breaktrough/error on window close probably #error
-        gameObject2.AddChild(&gameObject3);  // involves breaktrough/error on window close probably #error
-
-        gameObject2.transform.pos.x = 4;
-        gameObject3.transform.pos.x = 2;
-
-        gameObject2.transform.scale = { scale, scale, scale };
-        gameObject3.transform.scale = { scale, scale, scale };
-        //
-    }
-    gameObject1.updateSelfAndChildren();
-
-
-    // Setup Dear ImGui binding
+    // ImGUI
+    // -----
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -478,30 +453,14 @@ int main(int, char**)
 
     // Setup style
     ImGui::StyleColorsDark();
-    //ImGui::StyleColorsClassic();
-
-    // Load Fonts
-    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-    // - If the file cannot be loaded, the function will return NULL. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-    // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
-    // - Read 'misc/fonts/README.txt' for more instructions and details.
-    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-    //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/ProggyTiny.ttf", 10.0f);
-    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
-    //IM_ASSERT(font != NULL);
 
     bool show_demo_window = true;
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.1f, 0.1f, 0.1f, 1.00f);
-    glm::vec3 lightPos      (1.f, 1.f, 2.f);
-    glm::vec3 lightAmbient  (1.f, 1.f, 1.f);
-    glm::vec3 lightDiffuse  (1.f, 1.f, 1.f);
-    glm::vec3 lightSpecular (1.f, 1.f, 1.f);
+    glm::vec3 lightPos(1.f, 1.f, 2.f);
+    glm::vec3 lightAmbient(1.f, 1.f, 1.f);
+    glm::vec3 lightDiffuse(1.f, 1.f, 1.f);
+    glm::vec3 lightSpecular(1.f, 1.f, 1.f);
 
     // initialize static shader uniforms before rendering
     // --------------------------------------------------
@@ -514,21 +473,16 @@ int main(int, char**)
     glfwGetFramebufferSize(window, &scrWidth, &scrHeight);
     glViewport(0, 0, scrWidth, scrHeight);
 
-    /*glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);*/
-
-    // Main loop
+    // render loop
+    // -----------
     while (!glfwWindowShouldClose(window))
     {
+        // per-frame time logic
+        // --------------------
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        // Poll and handle events (inputs, window resize, etc.)
-        // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-        // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
-        // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
-        // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
         glfwPollEvents();
 
         // input (exp)
@@ -592,14 +546,15 @@ int main(int, char**)
         int display_w, display_h;
         glfwMakeContextCurrent(window);
         glfwGetFramebufferSize(window, &display_w, &display_h);
-        
+
         //glBindFramebuffer(GL_FRAMEBUFFER, FBO.ID);  // framebuffer
         //glEnable(GL_DEPTH_TEST);  // framebuffer
         glViewport(0, 0, display_w, display_h);
         glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // metal material
+        // Load metal material
+        // -------------------
         //glBindTextureUnit(3, albedo);
         // https://www.khronos.org/opengl/wiki/Layout_Qualifier_(GLSL)#Binding_points
         // not working by now
@@ -614,29 +569,35 @@ int main(int, char**)
         glActiveTexture(GL_TEXTURE7);
         glBindTexture(GL_TEXTURE_2D, ao);
 
-        // instance rendering
+        // Instancing
+        // ----------
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)screen_width / (float)screen_height, 0.1f, 1000.0f);
         glm::mat4 view = camera.GetViewMatrix();
-        instanceShader.use();
-        instanceShader.setMat4("projection", projection);
-        instanceShader.setMat4("view", view);
-        instanceShader.setInt("texture_diffuse1", 0);
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_2D, albedo); // note: we also made the textures_loaded vector public (instead of private) from the model class.
-        /*for (unsigned int i = 0; i < defaultCube.meshes.size(); i++)
-        {
-            glBindVertexArray(defaultCube.meshes[i].VAO);
-            glDrawElementsInstanced(GL_TRIANGLES, static_cast<unsigned int>(defaultCube.meshes[i].indices.size()), GL_UNSIGNED_INT, 0, amount);
-            glBindVertexArray(0);
-        }*/
-
-        // activate material shader
-        shader.use();
+        asteroidShader.use();
+        asteroidShader.setMat4("projection", projection);
+        asteroidShader.setMat4("view", view);
+        /*planetShader.use();
+        planetShader.setMat4("projection", projection);
+        planetShader.setMat4("view", view);*/
+        // draw planet
         glm::mat4 model = glm::mat4(1.0f);
-        projection = glm::perspective(glm::radians(45.0f), (float)screen_width / (float)screen_height, 0.1f, 1000.0f);
-        view = camera.GetViewMatrix();
-        shader.setMat4("view", view);
-        shader.setVec3("camPos", camera.Position);
+        /*model = glm::translate(model, glm::vec3(0.0f, -3.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(4.0f, 4.0f, 4.0f));
+        planetShader.setMat4("model", model);
+        planet.Draw(planetShader);*/
+        // draw meteorites
+        asteroidShader.use();
+        asteroidShader.setInt("texture_diffuse1", 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, rock.textures_loaded[0].id); // note: we also made the textures_loaded vector public (instead of private) from the model class.
+        for (unsigned int i = 0; i < rock.meshes.size(); i++)
+        {
+            glBindVertexArray(rock.meshes[i].VAO);
+            glDrawElementsInstanced(GL_TRIANGLES, static_cast<unsigned int>(rock.meshes[i].indices.size()), GL_UNSIGNED_INT, 0, amount);
+            glBindVertexArray(0);
+        }
+
+        // 633 - 694
 
         // bind pre-computed IBL data
         glActiveTexture(GL_TEXTURE0);
@@ -645,12 +606,19 @@ int main(int, char**)
         glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
-        
+
+        // render scene
+        // ------------
+        shader.use();
+        model = glm::mat4(1.0f);
+        projection = glm::perspective(glm::radians(45.0f), (float)screen_width / (float)screen_height, 0.1f, 1000.0f);
+        view = camera.GetViewMatrix();
+        shader.setMat4("view", view);
+        shader.setVec3("camPos", camera.Position);
         model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(-6.0, 0.0, 2.0));
         shader.setMat4("model", model);
         renderSphere();
-        nanosuit_model.Draw(shader);
 
         // load telephone model
         glActiveTexture(GL_TEXTURE3);
@@ -665,26 +633,8 @@ int main(int, char**)
         glBindTexture(GL_TEXTURE_2D, TelephoneAo);
         telephoneModel.Draw(shader);
 
-        // render sphere with another material
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(-1.0, 0.0, 2.0));
-        shader.setMat4("model", model);
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_2D, PanelsAlbedo);
-        glActiveTexture(GL_TEXTURE4);
-        glBindTexture(GL_TEXTURE_2D, PanelsNormal);
-        glActiveTexture(GL_TEXTURE5);
-        glBindTexture(GL_TEXTURE_2D, PanelsMetallic);
-        glActiveTexture(GL_TEXTURE6);
-        glBindTexture(GL_TEXTURE_2D, PanelsRoughness);
-        glActiveTexture(GL_TEXTURE7);
-        glBindTexture(GL_TEXTURE_2D, PanelsAo);
-        renderSphere();
-
-
         // render skybox (render as last to prevent overdraw)
         backgroundShader.use();
-
         backgroundShader.setMat4("view", view);
         backgroundShader.setMat4("projection", projection);
         glActiveTexture(GL_TEXTURE0);
@@ -696,8 +646,10 @@ int main(int, char**)
         // ImGui
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-        glfwMakeContextCurrent(window);
+        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
+        // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
+        glfwPollEvents();
     }
 
     // Cleanup
@@ -705,9 +657,7 @@ int main(int, char**)
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
-    glfwDestroyWindow(window);
     glfwTerminate();
-
     return 0;
 }
 
