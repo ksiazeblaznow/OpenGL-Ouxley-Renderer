@@ -1,3 +1,4 @@
+
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -22,6 +23,8 @@
 #include "Camera.h"
 #include "GameObject.h"
 #include "Framebuffer.h"
+#include "Shader.h"
+#include "Light.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -41,11 +44,11 @@ void renderCube();
 void renderQuad();
 
 // settings
-const unsigned int screen_width = 1280;
-const unsigned int screen_height = 720;
+const extern unsigned int screen_width = 1280;
+const extern unsigned int screen_height = 720;
 
 // camera
-Camera camera(glm::vec3(0.0f, 0.0f, 155.0f));
+Camera camera(glm::vec3(0.0f, 8.0f, 15.0f));
 float lastX = (float)screen_width / 2.0;
 float lastY = (float)screen_height / 2.0;
 bool firstMouse = true;
@@ -121,6 +124,8 @@ int main()
     Shader shader("../../res/shaders/PBR.vert", "../../res/shaders/PBR.frag");
     Shader asteroidShader("../../res/shaders/asteroids.vert", "../../res/shaders/asteroids.frag");
     Shader planetShader("../../res/shaders/planet.vert", "../../res/shaders/planet.frag");
+    Shader lightShader("../../res/shaders/light.vert", "../../res/shaders/light.frag");
+    Shader lightCubeShader("../../res/shaders/lightCube.vert", "../../res/shaders/lightCube.frag");
     Shader equirectangularToCubemapShader("../../res/shaders/cubemap.vert", "../../res/shaders/equirectangular_to_cubemap.frag");
     Shader irradianceShader("../../res/shaders/cubemap.vert", "../../res/shaders/irradiance_convolution.frag");
     Shader prefilterShader("../../res/shaders/cubemap.vert", "../../res/shaders/prefilter.frag");
@@ -136,6 +141,30 @@ int main()
     Model planet("../../res/models/jupiter/scene.gltf");
     Model telephoneModel("../../res/models/vintage-telephone-obj/Telephone.obj");
     Model defaultCube("../../res/models/defaultCube.obj");
+
+    // light shader configuration
+    // --------------------------
+    /*lightShader.use();
+    lightShader.setInt("material.diffuse", 0);
+    lightShader.setInt("material.specular", 1);
+    Light light;*/
+
+    // lights
+    // ------
+    glm::vec3 lightPoint1(-10.0f, 10.0f, 10.0f);
+    glm::vec3 lightPoint2(10.0f, 10.0f, 10.0f);
+    glm::vec3 lightPoint3(-10.0f, -10.0f, 10.0f);
+    glm::vec3 lightPoint4(10.0f, -10.0f, 10.0f);
+
+    glm::vec3 lightPositions[] = {
+        lightPoint1, lightPoint2, lightPoint3, lightPoint4
+    };
+    glm::vec3 lightColors[] = {
+        glm::vec3(300.0f, 300.0f, 300.0f),
+        glm::vec3(300.0f, 300.0f, 300.0f),
+        glm::vec3(300.0f, 300.0f, 300.0f),
+        glm::vec3(300.0f, 300.0f, 300.0f)
+    };
 
     // generate a large list of semi-random model transformation matrices
     // ------------------------------------------------------------------
@@ -518,9 +547,10 @@ int main()
 
             // light things
             ImGui::Text("Light specification below");
-            ImGui::SliderFloat3("Light Ambient", (float*)&lightAmbient, 0.f, 10.f);
-            ImGui::SliderFloat3("Light Specular", (float*)&lightSpecular, 0.f, 10.f);
-            ImGui::SliderFloat3("Light Diffuse", (float*)&lightDiffuse, 0.f, 10.f);
+            ImGui::SliderFloat3("Point Light 1: ", (float*)&lightPositions[0], 0.f, 10.f);
+            ImGui::SliderFloat3("Point Light 2: ", (float*)&lightPositions[1], 0.f, 10.f);
+            ImGui::SliderFloat3("Point Light 3: ", (float*)&lightPositions[2], 0.f, 10.f);
+            ImGui::SliderFloat3("Point Light 4: ", (float*)&lightPositions[3], 0.f, 10.f);
 
             if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
                 counter++;
@@ -597,8 +627,6 @@ int main()
             glBindVertexArray(0);
         }
 
-        // 633 - 694
-
         // bind pre-computed IBL data
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
@@ -619,6 +647,23 @@ int main()
         model = glm::translate(model, glm::vec3(-6.0, 0.0, 2.0));
         shader.setMat4("model", model);
         renderSphere();
+
+        // render light source (simply re-render sphere at light positions)
+        // this looks a bit off as we use the same shader, but it'll make their positions obvious and 
+        // keeps the codeprint small.
+        for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
+        {
+            glm::vec3 newPos = lightPositions[i] + glm::vec3(sin(glfwGetTime() * 5.0) * 5.0, 0.0, 0.0);
+            newPos = lightPositions[i];
+            shader.setVec3("lightPositions[" + std::to_string(i) + "]", newPos);
+            shader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
+
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, newPos);
+            model = glm::scale(model, glm::vec3(0.5f));
+            shader.setMat4("model", model);
+            renderSphere();
+        }
 
         // load telephone model
         glActiveTexture(GL_TEXTURE3);
@@ -688,7 +733,7 @@ void processInput(GLFWwindow* window)
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
             wireframe = false;
         }
-        // does not work xd
+        // does not work xd - now it works
     }
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
     {
