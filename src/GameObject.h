@@ -49,6 +49,8 @@ private:
 	//const char* name;			// unikalna nazwa
 
 public:
+	GameObject() = default;
+
 	Transform transform;
 	GameObject* parent = nullptr;
 	std::list<std::unique_ptr<GameObject>> children;

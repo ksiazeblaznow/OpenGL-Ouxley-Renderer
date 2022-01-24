@@ -43,13 +43,16 @@ GLuint loadTexture(char const* path);
 void renderSphere();
 void renderCube();
 void renderQuad();
+void RenderScene(Shader& _shader, GameObject& gameObject);
 
 // settings
 const extern unsigned int screen_width = 1280;
 const extern unsigned int screen_height = 720;
 
+
+glm::vec3 lightPos(0.f, 5.f, 0.f);
 // camera
-Camera camera(glm::vec3(0.0f, 8.0f, 15.0f));
+Camera camera(lightPos);
 float lastX = (float)screen_width / 2.0;
 float lastY = (float)screen_height / 2.0;
 bool firstMouse = true;
@@ -58,8 +61,50 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-// floor
-unsigned int planeVAO;
+// Models
+Model telephoneModel;
+Model defaultCube;
+Model plane;
+GameObject goPlane;
+
+// lights
+// ------
+glm::vec3 lightPoint1(-10.0f, 10.0f, 10.0f);
+glm::vec3 lightPoint2(10.0f, 10.0f, 10.0f);
+glm::vec3 lightPoint3(-10.0f, -10.0f, 10.0f);
+glm::vec3 lightPoint4(10.0f, -10.0f, 10.0f);
+
+glm::vec3 lightPositions[] = {
+    lightPoint1, lightPoint2, lightPoint3, lightPoint4
+};
+glm::vec3 lightColors[] = {
+    glm::vec3(300.0f, 300.0f, 300.0f),
+    glm::vec3(300.0f, 300.0f, 300.0f),
+    glm::vec3(300.0f, 300.0f, 300.0f),
+    glm::vec3(300.0f, 300.0f, 300.0f)
+};
+
+glm::vec3 goPosition = { 0.f, 0.f, 0.f };
+
+// Textures/materials
+ // Load PBR materials
+GLuint    albedo;
+GLuint    normal;
+GLuint  metallic;
+GLuint roughness;
+GLuint        ao;
+// panels
+GLuint    PanelsAlbedo;
+GLuint    PanelsNormal;
+GLuint  PanelsMetallic;
+GLuint PanelsRoughness;
+GLuint        PanelsAo;
+// telephone model
+GLuint    TelephoneAlbedo;
+GLuint    TelephoneNormal;
+GLuint  TelephoneMetallic;
+GLuint TelephoneRoughness;
+GLuint        TelephoneAo;
 
 int main()
 {
@@ -137,38 +182,44 @@ int main()
     Shader backgroundShader("../../res/shaders/background.vert", "../../res/shaders/background.frag");
     // instance shader (not working)
     Shader instanceShader("../../res/shaders/Instancing.vert", "../../res/shaders/Instancing.frag");
-
+    // Shadow Mapping shader
+    Shader shadowMapShader("../../res/shaders/shadowMapDepth.vert", "../../res/shaders/shadowMapDepth.frag");
+    
     // Load models and resources
     // -------------------------
     //Model nanosuit_model("../../res/models/nanosuit/nanosuit.obj");
     Model rock("../../res/models/asteroid/scene.gltf");
     Model planet("../../res/models/jupiter/scene.gltf");
-    Model telephoneModel("../../res/models/vintage-telephone-obj/Telephone.obj");
-    Model defaultCube("../../res/models/defaultCube.obj");
 
-    // light shader configuration
-    // --------------------------
-    /*lightShader.use();
-    lightShader.setInt("material.diffuse", 0);
-    lightShader.setInt("material.specular", 1);
-    Light light;*/
+    GameObject goDefaultCube("../../res/models/defaultCube.obj");
+    //goTelephone.transform.scale = { 0.1f, 0.1f, 0.1f };
+    telephoneModel.loadModel("../../res/models/vintage-telephone-obj/Telephone.obj");
+    defaultCube.loadModel("../../res/models/defaultCube.obj");
+    plane.loadModel("../../res/models/plane.obj");
+    goPlane = { "../../res/models/plane.obj" };
 
-    // lights
-    // ------
-    glm::vec3 lightPoint1(-10.0f, 10.0f, 10.0f);
-    glm::vec3 lightPoint2(10.0f, 10.0f, 10.0f);
-    glm::vec3 lightPoint3(-10.0f, -10.0f, 10.0f);
-    glm::vec3 lightPoint4(10.0f, -10.0f, 10.0f);
+// Textures/materials
+ // Load PBR materials
+   albedo = loadTexture("../../res/textures/TMetal/Metal_Color_2K.jpg");
+   normal = loadTexture("../../res/textures/TMetal/Metal_Normal_2K.jpg");
+ metallic = loadTexture("../../res/textures/TMetal/Metal_Metalness_2K.jpg");
+roughness = loadTexture("../../res/textures/TMetal/Metal_Roughness_2K.jpg");
+       ao = loadTexture("../../res/textures/TMetal/Metal_AO_2K.jpg");
 
-    glm::vec3 lightPositions[] = {
-        lightPoint1, lightPoint2, lightPoint3, lightPoint4
-    };
-    glm::vec3 lightColors[] = {
-        glm::vec3(300.0f, 300.0f, 300.0f),
-        glm::vec3(300.0f, 300.0f, 300.0f),
-        glm::vec3(300.0f, 300.0f, 300.0f),
-        glm::vec3(300.0f, 300.0f, 300.0f)
-    };
+   PanelsAlbedo = loadTexture("../../res/textures/TPanels/Panels_Color_2K.jpg");
+   PanelsNormal = loadTexture("../../res/textures/TPanels/Panels_Normal_2K.jpg");
+ PanelsMetallic = loadTexture("../../res/textures/TPanels/Panels_Metalness_2K.jpg");
+PanelsRoughness = loadTexture("../../res/textures/TPanels/Panels_Roughness_2K.jpg");
+       PanelsAo = loadTexture("../../res/textures/TPanels/Panels_AO_2K.jpg");
+
+   TelephoneAlbedo = loadTexture("../../res/models/vintage-telephone-obj/Telephone_C.png");
+   TelephoneNormal = loadTexture("../../res/models/vintage-telephone-obj/Telephone_N.png");
+ TelephoneMetallic = loadTexture("../../res/models/vintage-telephone-obj/Telephone_M.png");
+TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telephone_R.png");
+       TelephoneAo = loadTexture("../../res/models/vintage-telephone-obj/Telephone_AO.png");
+
+
+    //std::shared_ptr<Model>(telephoneModel);
 
     // generate a large list of semi-random model transformation matrices
     // ------------------------------------------------------------------
@@ -246,29 +297,49 @@ int main()
     shader.setInt("metallicMap", 5);
     shader.setInt("roughnessMap", 6);
     shader.setInt("aoMap", 7);
+    shader.setInt("shadowMap", 8);
 
-    // Load PBR materials
-    GLuint    albedo = loadTexture("../../res/textures/TMetal/Metal_Color_2K.jpg");
-    GLuint    normal = loadTexture("../../res/textures/TMetal/Metal_Normal_2K.jpg");
-    GLuint  metallic = loadTexture("../../res/textures/TMetal/Metal_Metalness_2K.jpg");
-    GLuint roughness = loadTexture("../../res/textures/TMetal/Metal_Roughness_2K.jpg");
-    GLuint        ao = loadTexture("../../res/textures/TMetal/Metal_AO_2K.jpg");
-    // panels
-    GLuint    PanelsAlbedo = loadTexture("../../res/textures/TPanels/Panels_Color_2K.jpg");
-    GLuint    PanelsNormal = loadTexture("../../res/textures/TPanels/Panels_Normal_2K.jpg");
-    GLuint  PanelsMetallic = loadTexture("../../res/textures/TPanels/Panels_Metalness_2K.jpg");
-    GLuint PanelsRoughness = loadTexture("../../res/textures/TPanels/Panels_Roughness_2K.jpg");
-    GLuint        PanelsAo = loadTexture("../../res/textures/TPanels/Panels_AO_2K.jpg");
-    // telephone model
-    GLuint    TelephoneAlbedo = loadTexture("../../res/models/vintage-telephone-obj/Telephone_C.png");
-    GLuint    TelephoneNormal = loadTexture("../../res/models/vintage-telephone-obj/Telephone_N.png");
-    GLuint  TelephoneMetallic = loadTexture("../../res/models/vintage-telephone-obj/Telephone_M.png");
-    GLuint TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telephone_R.png");
-    GLuint        TelephoneAo = loadTexture("../../res/models/vintage-telephone-obj/Telephone_AO.png");
 
+
+#pragma region SkyBox
     // SkyBox
     backgroundShader.use();
     backgroundShader.setInt("environmentMap", 0);
+#pragma endregion
+
+    // SHADOW MAPPING #shadows #mapping #shadow_maps
+    // --------------
+    // configure depth map FBO
+    // -----------------------
+    const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+    unsigned int depthMapFBO;
+    glGenFramebuffers(1, &depthMapFBO);
+    // create depth texture
+    unsigned int depthMap;
+    glGenTextures(1, &depthMap);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    float borderColor[] = { 1.0, 1.0, 1.0, 1.0 };
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+    // attach depth texture as FBO's depth buffer
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // skybox is the limit
+    shadowMapShader.use();
+    shader.setInt("shadowMap", 8);
+
+
+    // Directional ligthing info for shadow maps
+    //glm::vec3 lightPos(-2.0f, 4.0f, -1.0f);
+    
 
     // pbr: framebuffer
     // ----------------
@@ -490,7 +561,7 @@ int main()
     bool show_demo_window = true;
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.1f, 0.1f, 0.1f, 1.00f);
-    glm::vec3 lightPos(1.f, 1.f, 2.f);
+    glm::vec3 lightPosPoint(1.f, 1.f, 2.f);
     glm::vec3 lightAmbient(1.f, 1.f, 1.f);
     glm::vec3 lightDiffuse(1.f, 1.f, 1.f);
     glm::vec3 lightSpecular(1.f, 1.f, 1.f);
@@ -545,7 +616,7 @@ int main()
 
             ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
             ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-            ImGui::SliderFloat3("Light position", (float*)&lightPos, -10.f, 10.f); // Edit 3 floats representing a color
+            ImGui::SliderFloat3("Light position", (float*)&lightPosPoint, -10.f, 10.f); // Edit 3 floats representing a color
 
             ImGui::Text("Camera Yaw=%f Pitch=%f", camera.Yaw, camera.Pitch);  // camera debug
 
@@ -555,6 +626,7 @@ int main()
             ImGui::SliderFloat3("Point Light 2: ", (float*)&lightPositions[1], 0.f, 10.f);
             ImGui::SliderFloat3("Point Light 3: ", (float*)&lightPositions[2], 0.f, 10.f);
             ImGui::SliderFloat3("Point Light 4: ", (float*)&lightPositions[3], 0.f, 10.f);
+            ImGui::SliderFloat3("goPosition: ", (float*)&goPosition, -50.f, 50.f);
 
             if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
                 counter++;
@@ -581,17 +653,38 @@ int main()
         glfwMakeContextCurrent(window);
         glfwGetFramebufferSize(window, &display_w, &display_h);
 
-        //glBindFramebuffer(GL_FRAMEBUFFER, FBO.ID);  // framebuffer
-        //glEnable(GL_DEPTH_TEST);  // framebuffer
-        glViewport(0, 0, display_w, display_h);
-        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // change light position over time
+        //lightPos.x = sin(glfwGetTime()) * 3.0f;
+        //lightPos.z = cos(glfwGetTime()) * 2.0f;
+        //lightPos.y = 5.0 + cos(glfwGetTime()) * 1.0f;
+
+        // 1. render depth of scene to texture (from light's perspective)
+        // --------------------------------------------------------------
+        glm::mat4 model = glm::mat4(1.0f);
+        glm::mat4 lightProjection, lightView;
+        glm::mat4 lightSpaceMatrix;
+        float near_plane = -10.0f, far_plane = 10.f;
+        //lightProjection = glm::perspective(glm::radians(45.0f), (GLfloat)SHADOW_WIDTH / (GLfloat)SHADOW_HEIGHT, near_plane, far_plane); // note that if you use a perspective projection matrix you'll have to change the light position as the current light position isn't enough to reflect the whole scene
+        lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+        lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
+        lightSpaceMatrix = lightProjection * lightView;
+        // render scene from light's point of view
+        shadowMapShader.use();
+        shadowMapShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+
+        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+        glClear(GL_DEPTH_BUFFER_BIT);
+
+        glActiveTexture(GL_TEXTURE8);
+        glBindTexture(GL_TEXTURE_2D, depthMap);
+
+        RenderScene(shadowMapShader, goDefaultCube);
+
+        // END SHADOW MAP
 
         // Load metal material
         // -------------------
-        //glBindTextureUnit(3, albedo);
-        // https://www.khronos.org/opengl/wiki/Layout_Qualifier_(GLSL)#Binding_points
-        // not working by now
         glActiveTexture(GL_TEXTURE3);
         glBindTexture(GL_TEXTURE_2D, albedo);
         glActiveTexture(GL_TEXTURE4);
@@ -602,6 +695,11 @@ int main()
         glBindTexture(GL_TEXTURE_2D, roughness);
         glActiveTexture(GL_TEXTURE7);
         glBindTexture(GL_TEXTURE_2D, ao);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        // reset viewport
+        glViewport(0, 0, screen_width, screen_height);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Instancing
         // ----------
@@ -614,7 +712,7 @@ int main()
         planetShader.setMat4("projection", projection);
         planetShader.setMat4("view", view);*/
         // draw planet
-        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::mat4(1.0f);
         /*model = glm::translate(model, glm::vec3(0.0f, -3.0f, 0.0f));
         model = glm::scale(model, glm::vec3(4.0f, 4.0f, 4.0f));
         planetShader.setMat4("model", model);
@@ -642,32 +740,10 @@ int main()
         // render scene
         // ------------
         shader.use();
-        model = glm::mat4(1.0f);
-        projection = glm::perspective(glm::radians(45.0f), (float)screen_width / (float)screen_height, 0.1f, 1000.0f);
-        view = camera.GetViewMatrix();
         shader.setMat4("view", view);
         shader.setVec3("camPos", camera.Position);
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(-6.0, 0.0, 2.0));
-        shader.setMat4("model", model);
-        renderSphere();
-
-        // render light source (simply re-render sphere at light positions)
-        // this looks a bit off as we use the same shader, but it'll make their positions obvious and 
-        // keeps the codeprint small.
-        for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
-        {
-            glm::vec3 newPos = lightPositions[i] + glm::vec3(sin(glfwGetTime() * 5.0) * 5.0, 0.0, 0.0);
-            newPos = lightPositions[i];
-            shader.setVec3("lightPositions[" + std::to_string(i) + "]", newPos);
-            shader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
-
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, newPos);
-            model = glm::scale(model, glm::vec3(0.5f));
-            shader.setMat4("model", model);
-            renderSphere();
-        }
+        view = camera.GetViewMatrix();
+        projection = glm::perspective(glm::radians(45.0f), (float)screen_width / (float)screen_height, 0.1f, 1000.0f);
 
         // load telephone model
         glActiveTexture(GL_TEXTURE3);
@@ -680,7 +756,10 @@ int main()
         glBindTexture(GL_TEXTURE_2D, TelephoneRoughness);
         glActiveTexture(GL_TEXTURE7);
         glBindTexture(GL_TEXTURE_2D, TelephoneAo);
-        telephoneModel.Draw(shader);
+
+        // render scene with PBR
+        RenderScene(shader, goDefaultCube);
+
 
         // render skybox (render as last to prevent overdraw)
         backgroundShader.use();
@@ -711,6 +790,71 @@ int main()
 }
 
 bool wireframe = false;
+
+void RenderScene(Shader& _shader, GameObject& gameObject)
+{
+    // Load metal material
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, albedo);
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_2D, normal);
+    glActiveTexture(GL_TEXTURE5);
+    glBindTexture(GL_TEXTURE_2D, metallic);
+    glActiveTexture(GL_TEXTURE6);
+    glBindTexture(GL_TEXTURE_2D, roughness);
+    glActiveTexture(GL_TEXTURE7);
+    glBindTexture(GL_TEXTURE_2D, ao);
+
+    glm::mat4 model = glm::mat4(1.0f);
+    // Draw floor
+    //plane.Draw(_shader);
+    goPlane.transform.scale = { 10.f, 10.f, 10.f };
+    goPlane.Draw(_shader);
+    model = glm::translate(model, glm::vec3(-6.0, 0.0, 2.0));
+    _shader.setMat4("model", model);
+    renderSphere();
+
+    // render light source (simply re-render sphere at light positions)
+    // this looks a bit off as we use the same shader, but it'll make their positions obvious and 
+    // keeps the codeprint small.
+    for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
+    {
+        glm::vec3 newPos = lightPositions[i] + glm::vec3(sin(glfwGetTime() * 5.0) * 5.0, 0.0, 0.0);
+        newPos = lightPositions[i];
+        _shader.setVec3("lightPositions[" + std::to_string(i) + "]", newPos);
+        _shader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, newPos);
+        model = glm::scale(model, glm::vec3(0.5f));
+        _shader.setMat4("model", model);
+        renderSphere();
+    }
+
+    // load telephone model
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, TelephoneAlbedo);
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_2D, TelephoneNormal);
+    glActiveTexture(GL_TEXTURE5);
+    glBindTexture(GL_TEXTURE_2D, TelephoneMetallic);
+    glActiveTexture(GL_TEXTURE6);
+    glBindTexture(GL_TEXTURE_2D, TelephoneRoughness);
+    glActiveTexture(GL_TEXTURE7);
+    glBindTexture(GL_TEXTURE_2D, TelephoneAo);
+
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(0.0, 2.0, 0.0));
+    _shader.setMat4("model", model);
+    gameObject.transform.pos = goPosition;
+    gameObject.updateSelfAndChildren();
+    _shader.setMat4("model", gameObject.transform.modelMatrix);
+    gameObject.Draw(_shader);
+
+    //defaultCube.Draw(_shader);
+    //telephoneModel.Draw(_shader);
+    model = glm::mat4(1.0f);
+}
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------

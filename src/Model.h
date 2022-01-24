@@ -1,7 +1,4 @@
-
-
-#ifndef MODEL_H
-#define MODEL_H
+#pragma once
 
 #include <glad/glad.h> 
 
@@ -40,6 +37,8 @@ public:
         loadModel(path);
     }
 
+    Model() = default;
+
     // draws the model, and thus all its meshes
     void Draw(Shader& shader)
     {
@@ -47,7 +46,7 @@ public:
             meshes[i].Draw(shader);
     }
 
-private:
+public:
     // loads a model with supported ASSIMP extensions from file and stores the resulting meshes in the meshes vector.
     void loadModel(string const& path)
     {
@@ -260,5 +259,3 @@ unsigned int TextureFromFile(const char* path, const string& directory, bool gam
 
     return textureID;
 }
-#endif
-
