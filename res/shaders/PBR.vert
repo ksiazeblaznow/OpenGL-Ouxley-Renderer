@@ -16,7 +16,6 @@ out VS_OUT {
     vec4 FragPosLightSpace;
 } vs_out;
 
-uniform mat4 lightProjection;
 uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
@@ -32,8 +31,6 @@ void main()
     TexCoords = aTexCoords;
     WorldPos = vec3(model * vec4(aPos, 1.0));
     Normal = mat3(model) * aNormal;
-
-    lightProjectionOut = lightProjection * model * vec4(aPos, 1.0);
 
     gl_Position = projection * view * vec4(WorldPos, 1.0);
 

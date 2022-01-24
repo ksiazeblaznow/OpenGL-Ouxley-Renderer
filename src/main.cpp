@@ -25,7 +25,6 @@
 #include "GameObject.h"
 #include "Framebuffer.h"
 #include "Shader.h"
-#include "Light.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -50,9 +49,8 @@ const extern unsigned int screen_width = 1280;
 const extern unsigned int screen_height = 720;
 
 
-glm::vec3 lightPos(0.f, 5.f, 0.f);
 // camera
-Camera camera(lightPos);
+Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 float lastX = (float)screen_width / 2.0;
 float lastY = (float)screen_height / 2.0;
 bool firstMouse = true;
@@ -60,12 +58,6 @@ bool firstMouse = true;
 // timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
-
-// Models
-Model telephoneModel;
-Model defaultCube;
-Model plane;
-GameObject goPlane;
 
 // lights
 // ------
@@ -83,8 +75,6 @@ glm::vec3 lightColors[] = {
     glm::vec3(300.0f, 300.0f, 300.0f),
     glm::vec3(300.0f, 300.0f, 300.0f)
 };
-
-glm::vec3 goPosition = { 0.f, 0.f, 0.f };
 
 // Textures/materials
  // Load PBR materials
@@ -105,6 +95,8 @@ GLuint    TelephoneNormal;
 GLuint  TelephoneMetallic;
 GLuint TelephoneRoughness;
 GLuint        TelephoneAo;
+
+unsigned int planeVAO;
 
 int main()
 {
@@ -168,147 +160,32 @@ int main()
     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
     //glEnable(GL_CULL_FACE);  // Face Culling
 
-    // build and compile shaders
-    // -------------------------
-    Shader shader("../../res/shaders/PBR.vert", "../../res/shaders/PBR.frag");
-    Shader asteroidShader("../../res/shaders/asteroids.vert", "../../res/shaders/asteroids.frag");
-    Shader planetShader("../../res/shaders/planet.vert", "../../res/shaders/planet.frag");
-    //Shader lightShader("../../res/shaders/light.vert", "../../res/shaders/light.frag");
-    //Shader lightCubeShader("../../res/shaders/lightCube.vert", "../../res/shaders/lightCube.frag");
-    Shader equirectangularToCubemapShader("../../res/shaders/cubemap.vert", "../../res/shaders/equirectangular_to_cubemap.frag");
-    Shader irradianceShader("../../res/shaders/cubemap.vert", "../../res/shaders/irradiance_convolution.frag");
-    Shader prefilterShader("../../res/shaders/cubemap.vert", "../../res/shaders/prefilter.frag");
-    Shader brdfShader("../../res/shaders/brdf.vert", "../../res/shaders/brdf.frag");
-    Shader backgroundShader("../../res/shaders/background.vert", "../../res/shaders/background.frag");
-    // instance shader (not working)
-    Shader instanceShader("../../res/shaders/Instancing.vert", "../../res/shaders/Instancing.frag");
-    // Shadow Mapping shader
-    Shader shadowMapShader("../../res/shaders/shadowMapDepth.vert", "../../res/shaders/shadowMapDepth.frag");
-    
-    // Load models and resources
-    // -------------------------
-    //Model nanosuit_model("../../res/models/nanosuit/nanosuit.obj");
-    Model rock("../../res/models/asteroid/scene.gltf");
-    Model planet("../../res/models/jupiter/scene.gltf");
+    float planeVertices[] = {
+        // positions            // normals         // texcoords
+         25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,  25.0f,  0.0f,
+        -25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,   0.0f,  0.0f,
+        -25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,   0.0f, 25.0f,
 
-    GameObject goDefaultCube("../../res/models/defaultCube.obj");
-    //goTelephone.transform.scale = { 0.1f, 0.1f, 0.1f };
-    telephoneModel.loadModel("../../res/models/vintage-telephone-obj/Telephone.obj");
-    defaultCube.loadModel("../../res/models/defaultCube.obj");
-    plane.loadModel("../../res/models/plane.obj");
-    goPlane = { "../../res/models/plane.obj" };
+         25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,  25.0f,  0.0f,
+        -25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,   0.0f, 25.0f,
+         25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,  25.0f, 25.0f
+    };
 
-// Textures/materials
- // Load PBR materials
-   albedo = loadTexture("../../res/textures/TMetal/Metal_Color_2K.jpg");
-   normal = loadTexture("../../res/textures/TMetal/Metal_Normal_2K.jpg");
- metallic = loadTexture("../../res/textures/TMetal/Metal_Metalness_2K.jpg");
-roughness = loadTexture("../../res/textures/TMetal/Metal_Roughness_2K.jpg");
-       ao = loadTexture("../../res/textures/TMetal/Metal_AO_2K.jpg");
+    // plane VAO
+    unsigned int planeVBO;
+    glGenVertexArrays(1, &planeVAO);
+    glGenBuffers(1, &planeVBO);
+    glBindVertexArray(planeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), planeVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glBindVertexArray(0);
 
-   PanelsAlbedo = loadTexture("../../res/textures/TPanels/Panels_Color_2K.jpg");
-   PanelsNormal = loadTexture("../../res/textures/TPanels/Panels_Normal_2K.jpg");
- PanelsMetallic = loadTexture("../../res/textures/TPanels/Panels_Metalness_2K.jpg");
-PanelsRoughness = loadTexture("../../res/textures/TPanels/Panels_Roughness_2K.jpg");
-       PanelsAo = loadTexture("../../res/textures/TPanels/Panels_AO_2K.jpg");
-
-   TelephoneAlbedo = loadTexture("../../res/models/vintage-telephone-obj/Telephone_C.png");
-   TelephoneNormal = loadTexture("../../res/models/vintage-telephone-obj/Telephone_N.png");
- TelephoneMetallic = loadTexture("../../res/models/vintage-telephone-obj/Telephone_M.png");
-TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telephone_R.png");
-       TelephoneAo = loadTexture("../../res/models/vintage-telephone-obj/Telephone_AO.png");
-
-
-    //std::shared_ptr<Model>(telephoneModel);
-
-    // generate a large list of semi-random model transformation matrices
-    // ------------------------------------------------------------------
-    unsigned int amount = 10000;
-    glm::mat4* modelMatrices;
-    modelMatrices = new glm::mat4[amount];
-    srand(static_cast<unsigned int>(glfwGetTime())); // initialize random seed
-    float radius = 150.0;
-    float offset = 25.0f;
-    for (unsigned int i = 0; i < amount; i++)
-    {
-        glm::mat4 model = glm::mat4(1.0f);
-        // 1. translation: displace along circle with 'radius' in range [-offset, offset]
-        float angle = (float)i / (float)amount * 360.0f;
-        float displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
-        float x = sin(angle) * radius + displacement;
-        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
-        float y = displacement * 0.4f; // keep height of asteroid field smaller compared to width of x and z
-        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
-        float z = cos(angle) * radius + displacement;
-        model = glm::translate(model, glm::vec3(x, y, z));
-
-        // 2. scale: Scale between 0.05 and 0.25f
-        float scale = static_cast<float>((rand() % 20) / 100.0 + 0.05);
-        model = glm::scale(model, glm::vec3(scale));
-
-        // 3. rotation: add random rotation around a (semi)randomly picked rotation axis vector
-        float rotAngle = static_cast<float>((rand() % 360));
-        model = glm::rotate(model, rotAngle, glm::vec3(0.4f, 0.6f, 0.8f));
-
-        // 4. now add to list of matrices
-        modelMatrices[i] = model;
-    }
-
-    // configure instanced array
-    // -------------------------
-    unsigned int buffer;
-    glGenBuffers(1, &buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER, amount * sizeof(glm::mat4), &modelMatrices[0], GL_STATIC_DRAW);
-
-    // set transformation matrices as an instance vertex attribute (with divisor 1)
-    // note: we're cheating a little by taking the, now publicly declared, VAO of the model's mesh(es) and adding new vertexAttribPointers
-    // normally you'd want to do this in a more organized fashion, but for learning purposes this will do.
-    // -----------------------------------------------------------------------------------------------------------------------------------
-    for (unsigned int i = 0; i < rock.meshes.size(); i++)
-    {
-        unsigned int VAO = rock.meshes[i].VAO;
-        glBindVertexArray(VAO);
-        // set attribute pointers for matrix (4 times vec4)
-        glEnableVertexAttribArray(3);
-        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)0);
-        glEnableVertexAttribArray(4);
-        glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4)));
-        glEnableVertexAttribArray(5);
-        glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(2 * sizeof(glm::vec4)));
-        glEnableVertexAttribArray(6);
-        glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(3 * sizeof(glm::vec4)));
-
-        glVertexAttribDivisor(3, 1);
-        glVertexAttribDivisor(4, 1);
-        glVertexAttribDivisor(5, 1);
-        glVertexAttribDivisor(6, 1);
-
-        glBindVertexArray(0);
-    }
-
-    // PBR
-    shader.use();
-    shader.setInt("irradianceMap", 0);
-    shader.setInt("prefilterMap", 1);
-    shader.setInt("brdfLUT", 2);
-    shader.setInt("albedoMap", 3);
-    shader.setInt("normalMap", 4);
-    shader.setInt("metallicMap", 5);
-    shader.setInt("roughnessMap", 6);
-    shader.setInt("aoMap", 7);
-    shader.setInt("shadowMap", 8);
-
-
-
-#pragma region SkyBox
-    // SkyBox
-    backgroundShader.use();
-    backgroundShader.setInt("environmentMap", 0);
-#pragma endregion
-
-    // SHADOW MAPPING #shadows #mapping #shadow_maps
-    // --------------
     // configure depth map FBO
     // -----------------------
     const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
@@ -332,15 +209,75 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
     glReadBuffer(GL_NONE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    // skybox is the limit
-    shadowMapShader.use();
+
+    // build and compile shaders
+    // -------------------------
+    Shader shader("../../res/shaders/PBR.vert", "../../res/shaders/PBR.frag");
+    Shader asteroidShader("../../res/shaders/asteroids.vert", "../../res/shaders/asteroids.frag");
+    Shader planetShader("../../res/shaders/planet.vert", "../../res/shaders/planet.frag");
+    Shader equirectangularToCubemapShader("../../res/shaders/cubemap.vert", "../../res/shaders/equirectangular_to_cubemap.frag");
+    Shader irradianceShader("../../res/shaders/cubemap.vert", "../../res/shaders/irradiance_convolution.frag");
+    Shader prefilterShader("../../res/shaders/cubemap.vert", "../../res/shaders/prefilter.frag");
+    Shader brdfShader("../../res/shaders/brdf.vert", "../../res/shaders/brdf.frag");
+    Shader backgroundShader("../../res/shaders/background.vert", "../../res/shaders/background.frag");
+    // Shadow Mapping shader
+    Shader simpleDepthShader("../../res/shaders/shadowMapDepth.vert", "../../res/shaders/shadowMapDepth.frag");
+    Shader debugDepthQuad("../../res/shaders/debug_quad.vert", "../../res/shaders/debug_quad_depth.frag");
+   
+
+    // Load models and resources
+    // -------------------------
+    GameObject goDefaultCube("../../res/models/defaultCube.obj");
+
+    // shader configuration
+    // --------------------
+    shader.use();
     shader.setInt("shadowMap", 8);
+    debugDepthQuad.use();
+    debugDepthQuad.setInt("depthMap", 0);
 
-
-    // Directional ligthing info for shadow maps
-    //glm::vec3 lightPos(-2.0f, 4.0f, -1.0f);
+    // lighting info
+    // -------------
+    glm::vec3 lightPos(-2.0f, 4.0f, -1.0f);
     
+// Textures/materials
+// Load PBR materials
+   albedo = loadTexture("../../res/textures/TMetal/Metal_Color_2K.jpg");
+   normal = loadTexture("../../res/textures/TMetal/Metal_Normal_2K.jpg");
+ metallic = loadTexture("../../res/textures/TMetal/Metal_Metalness_2K.jpg");
+roughness = loadTexture("../../res/textures/TMetal/Metal_Roughness_2K.jpg");
+       ao = loadTexture("../../res/textures/TMetal/Metal_AO_2K.jpg");
 
+   PanelsAlbedo = loadTexture("../../res/textures/TPanels/Panels_Color_2K.jpg");
+   PanelsNormal = loadTexture("../../res/textures/TPanels/Panels_Normal_2K.jpg");
+ PanelsMetallic = loadTexture("../../res/textures/TPanels/Panels_Metalness_2K.jpg");
+PanelsRoughness = loadTexture("../../res/textures/TPanels/Panels_Roughness_2K.jpg");
+       PanelsAo = loadTexture("../../res/textures/TPanels/Panels_AO_2K.jpg");
+
+   TelephoneAlbedo = loadTexture("../../res/models/vintage-telephone-obj/Telephone_C.png");
+   TelephoneNormal = loadTexture("../../res/models/vintage-telephone-obj/Telephone_N.png");
+ TelephoneMetallic = loadTexture("../../res/models/vintage-telephone-obj/Telephone_M.png");
+TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telephone_R.png");
+       TelephoneAo = loadTexture("../../res/models/vintage-telephone-obj/Telephone_AO.png");
+
+    // PBR
+    shader.use();
+    shader.setInt("irradianceMap", 0);
+    shader.setInt("prefilterMap", 1);
+    shader.setInt("brdfLUT", 2);
+    shader.setInt("albedoMap", 3);
+    shader.setInt("normalMap", 4);
+    shader.setInt("metallicMap", 5);
+    shader.setInt("roughnessMap", 6);
+    shader.setInt("aoMap", 7);
+    //shader.setInt("shadowMap", 8);
+
+#pragma region SkyBox
+    // SkyBox
+    backgroundShader.use();
+    backgroundShader.setInt("environmentMap", 0);
+#pragma endregion
+    // skybox is the limit
     // pbr: framebuffer
     // ----------------
     GLuint captureFBO;
@@ -594,6 +531,8 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         glfwSetCursorPosCallback(window, mouse_callback);
         glfwSetScrollCallback(window, scroll_callback);
 
+#pragma region ImGui
+
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -626,8 +565,8 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
             ImGui::SliderFloat3("Point Light 2: ", (float*)&lightPositions[1], 0.f, 10.f);
             ImGui::SliderFloat3("Point Light 3: ", (float*)&lightPositions[2], 0.f, 10.f);
             ImGui::SliderFloat3("Point Light 4: ", (float*)&lightPositions[3], 0.f, 10.f);
-            ImGui::SliderFloat3("goPosition: ", (float*)&goPosition, -50.f, 50.f);
-
+            ImGui::SliderFloat3("LightPos (shadows): ", (float*)&lightPos, -10.f, 10.f);
+            
             if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
                 counter++;
             ImGui::SameLine();
@@ -649,39 +588,67 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
 
         // Rendering
         ImGui::Render();
+
+#pragma endregion ImGui
+
         int display_w, display_h;
         glfwMakeContextCurrent(window);
         glfwGetFramebufferSize(window, &display_w, &display_h);
 
-        // change light position over time
-        //lightPos.x = sin(glfwGetTime()) * 3.0f;
-        //lightPos.z = cos(glfwGetTime()) * 2.0f;
-        //lightPos.y = 5.0 + cos(glfwGetTime()) * 1.0f;
-
         // 1. render depth of scene to texture (from light's perspective)
         // --------------------------------------------------------------
-        glm::mat4 model = glm::mat4(1.0f);
         glm::mat4 lightProjection, lightView;
         glm::mat4 lightSpaceMatrix;
-        float near_plane = -10.0f, far_plane = 10.f;
+        float near_plane = 1.0f, far_plane = 7.5f;
         //lightProjection = glm::perspective(glm::radians(45.0f), (GLfloat)SHADOW_WIDTH / (GLfloat)SHADOW_HEIGHT, near_plane, far_plane); // note that if you use a perspective projection matrix you'll have to change the light position as the current light position isn't enough to reflect the whole scene
         lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
         lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
         lightSpaceMatrix = lightProjection * lightView;
         // render scene from light's point of view
-        shadowMapShader.use();
-        shadowMapShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+        simpleDepthShader.use();
+        simpleDepthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
 
         glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
         glClear(GL_DEPTH_BUFFER_BIT);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, albedo);
+        RenderScene(simpleDepthShader, goDefaultCube);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-        glActiveTexture(GL_TEXTURE8);
+        // reset viewport
+        glViewport(0, 0, screen_width, screen_height);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // 2. render scene as normal using the generated depth/shadow map  
+        // --------------------------------------------------------------
+        glViewport(0, 0, screen_width, screen_height);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        shader.use();
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)screen_width / (float)screen_height, 0.1f, 100.0f);
+        glm::mat4 view = camera.GetViewMatrix();
+        shader.setMat4("projection", projection);
+        shader.setMat4("view", view);
+        // set light uniforms
+        shader.setVec3("camPos", camera.Position);
+        shader.setVec3("lightPos", lightPos);
+        shader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, albedo);
+        glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, depthMap);
+        RenderScene(shader, goDefaultCube);
 
-        RenderScene(shadowMapShader, goDefaultCube);
+        // render Depth map to quad for visual debugging
+        // ---------------------------------------------
+        debugDepthQuad.use();
+        debugDepthQuad.setFloat("near_plane", near_plane);
+        debugDepthQuad.setFloat("far_plane", far_plane);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, depthMap);
+        //renderQuad();
 
-        // END SHADOW MAP
+        // END OF LEARNOPENGL
 
         // Load metal material
         // -------------------
@@ -695,39 +662,10 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         glBindTexture(GL_TEXTURE_2D, roughness);
         glActiveTexture(GL_TEXTURE7);
         glBindTexture(GL_TEXTURE_2D, ao);
-
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         // reset viewport
         glViewport(0, 0, screen_width, screen_height);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // Instancing
-        // ----------
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)screen_width / (float)screen_height, 0.1f, 1000.0f);
-        glm::mat4 view = camera.GetViewMatrix();
-        asteroidShader.use();
-        asteroidShader.setMat4("projection", projection);
-        asteroidShader.setMat4("view", view);
-        /*planetShader.use();
-        planetShader.setMat4("projection", projection);
-        planetShader.setMat4("view", view);*/
-        // draw planet
-        model = glm::mat4(1.0f);
-        /*model = glm::translate(model, glm::vec3(0.0f, -3.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(4.0f, 4.0f, 4.0f));
-        planetShader.setMat4("model", model);
-        planet.Draw(planetShader);*/
-        // draw meteorites
-        asteroidShader.use();
-        asteroidShader.setInt("texture_diffuse1", 0);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, rock.textures_loaded[0].id); // note: we also made the textures_loaded vector public (instead of private) from the model class.
-        for (unsigned int i = 0; i < rock.meshes.size(); i++)
-        {
-            glBindVertexArray(rock.meshes[i].VAO);
-            glDrawElementsInstanced(GL_TRIANGLES, static_cast<unsigned int>(rock.meshes[i].indices.size()), GL_UNSIGNED_INT, 0, amount);
-            glBindVertexArray(0);
-        }
 
         // bind pre-computed IBL data
         glActiveTexture(GL_TEXTURE0);
@@ -737,6 +675,8 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
 
+        projection = glm::perspective(glm::radians(45.0f), (float)screen_width / (float)screen_height, 0.1f, 1000.0f);
+        view = camera.GetViewMatrix();
         // render scene
         // ------------
         shader.use();
@@ -760,15 +700,12 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         // render scene with PBR
         RenderScene(shader, goDefaultCube);
 
-
         // render skybox (render as last to prevent overdraw)
         backgroundShader.use();
         backgroundShader.setMat4("view", view);
         backgroundShader.setMat4("projection", projection);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
-        //glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap); // display irradiance map
-        //glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap); // display prefilter map
         renderCube();
 
         // ImGui
@@ -793,6 +730,29 @@ bool wireframe = false;
 
 void RenderScene(Shader& _shader, GameObject& gameObject)
 {
+    // floor
+    glm::mat4 model = glm::mat4(1.0f);
+    _shader.setMat4("model", model);
+    glBindVertexArray(planeVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    // cubes
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(0.0f, 1.5f, 0.0));
+    model = glm::scale(model, glm::vec3(0.5f));
+    _shader.setMat4("model", model);
+    renderCube();
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(2.0f, 0.0f, 1.0));
+    model = glm::scale(model, glm::vec3(0.5f));
+    _shader.setMat4("model", model);
+    renderCube();
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(-1.0f, 0.0f, 2.0));
+    model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
+    model = glm::scale(model, glm::vec3(0.25));
+    _shader.setMat4("model", model);
+    renderCube();
+
     // Load metal material
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, albedo);
@@ -805,12 +765,7 @@ void RenderScene(Shader& _shader, GameObject& gameObject)
     glActiveTexture(GL_TEXTURE7);
     glBindTexture(GL_TEXTURE_2D, ao);
 
-    glm::mat4 model = glm::mat4(1.0f);
-    // Draw floor
-    //plane.Draw(_shader);
-    goPlane.transform.scale = { 10.f, 10.f, 10.f };
-    goPlane.Draw(_shader);
-    model = glm::translate(model, glm::vec3(-6.0, 0.0, 2.0));
+    model = glm::mat4(1.0f);
     _shader.setMat4("model", model);
     renderSphere();
 
@@ -843,17 +798,15 @@ void RenderScene(Shader& _shader, GameObject& gameObject)
     glActiveTexture(GL_TEXTURE7);
     glBindTexture(GL_TEXTURE_2D, TelephoneAo);
 
+    // Render Game Object
     model = glm::mat4(1.0f);
     model = glm::translate(model, glm::vec3(0.0, 2.0, 0.0));
     _shader.setMat4("model", model);
-    gameObject.transform.pos = goPosition;
+    gameObject.transform.pos = { 0.f, 0.f, 0.f };
     gameObject.updateSelfAndChildren();
     _shader.setMat4("model", gameObject.transform.modelMatrix);
     gameObject.Draw(_shader);
 
-    //defaultCube.Draw(_shader);
-    //telephoneModel.Draw(_shader);
-    model = glm::mat4(1.0f);
 }
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly

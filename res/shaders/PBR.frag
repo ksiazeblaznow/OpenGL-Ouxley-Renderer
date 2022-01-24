@@ -19,12 +19,14 @@ layout(binding = 4) uniform sampler2D normalMap;
 layout(binding = 5) uniform sampler2D metallicMap;
 layout(binding = 6) uniform sampler2D roughnessMap;
 layout(binding = 7) uniform sampler2D aoMap;
+layout(binding = 8) uniform sampler2D shadowMap;
 
 // IBL
 uniform samplerCube irradianceMap;
 uniform samplerCube prefilterMap;
 uniform sampler2D brdfLUT;
-uniform sampler2D shadowMap;
+
+// shadow map
 
 // lights
 uniform vec3 lightPositions[4];
