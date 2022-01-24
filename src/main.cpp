@@ -1,8 +1,9 @@
 
-#include "imgui.h"
+#include "../thirdparty/imgui/imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include <stdio.h>
+#include <ImGuizmo.h>
 
 // About OpenGL function loaders: modern OpenGL doesn't have a standard header file and requires individual function pointers to be loaded manually. 
 // Helper libraries are often used for this purpose! Here we are supporting a few common ones: gl3w, glew, glad.
@@ -56,6 +57,9 @@ bool firstMouse = true;
 // timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
+
+// floor
+unsigned int planeVAO;
 
 int main()
 {
@@ -124,8 +128,8 @@ int main()
     Shader shader("../../res/shaders/PBR.vert", "../../res/shaders/PBR.frag");
     Shader asteroidShader("../../res/shaders/asteroids.vert", "../../res/shaders/asteroids.frag");
     Shader planetShader("../../res/shaders/planet.vert", "../../res/shaders/planet.frag");
-    Shader lightShader("../../res/shaders/light.vert", "../../res/shaders/light.frag");
-    Shader lightCubeShader("../../res/shaders/lightCube.vert", "../../res/shaders/lightCube.frag");
+    //Shader lightShader("../../res/shaders/light.vert", "../../res/shaders/light.frag");
+    //Shader lightCubeShader("../../res/shaders/lightCube.vert", "../../res/shaders/lightCube.frag");
     Shader equirectangularToCubemapShader("../../res/shaders/cubemap.vert", "../../res/shaders/equirectangular_to_cubemap.frag");
     Shader irradianceShader("../../res/shaders/cubemap.vert", "../../res/shaders/irradiance_convolution.frag");
     Shader prefilterShader("../../res/shaders/cubemap.vert", "../../res/shaders/prefilter.frag");
