@@ -662,7 +662,10 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
 
-
+        // set shadow map to uniform in PBR.frag
+        shader.use();
+        glActiveTexture(GL_TEXTURE8);
+        glBindTexture(GL_TEXTURE_2D, depthMap);
         
 
         // 2. render scene as normal using the generated depth/shadow map
