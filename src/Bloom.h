@@ -9,11 +9,11 @@ void renderQuad();
 class Bloom
 {
     GLuint FBO;
-    GLuint attachments[2];  // setupFBO
+    //GLuint attachments[2];  // setupFBO
     GLuint pingpongFBO[2];  // GaussBlur
     GLuint pingpongBuffers[2];  // GaussBlur
-    unsigned int hdrFBO;
-    unsigned int colorBuffers[2];
+    //unsigned int hdrFBO;
+    //unsigned int colorBuffers[2];
     int screenW, screenH;
     Shader& shaderBlur;
 
@@ -30,10 +30,14 @@ public:
         shaderBlur.use();
         shaderBlur.setInt("image", 12);
 
-        setupFBO();
+        //setupFBO();
+        SetupPingPongFramebuffersForGaussianBlur();  // only once
         //RenderGaussBlur();
     }
 
+    // deprecated function setupFBO as it is already in main.cpp
+    // cuz it needs defColorBuffer to work
+    /*
     void setupFBO()
     {
         // create 2 floating point color buffers
@@ -60,7 +64,13 @@ public:
         attachments[0] = GL_COLOR_ATTACHMENT0;
         attachments[1] = GL_COLOR_ATTACHMENT1;
         glDrawBuffers(2, attachments);
+    }
+    */
 
+private:
+    // Setup frambuffers for gaussian blur (invoked only once forRenderGaussBlur)
+    void SetupPingPongFramebuffersForGaussianBlur()
+    {
         // Setup two framebuffers for gaussian blur (ping-pong)
         // ----------------------------------------------------
         glGenFramebuffers(2, pingpongFBO);
@@ -82,8 +92,9 @@ public:
         }
     }
 
+public:
     // Set main shader
-    void RenderGaussBlur(Shader& postProcessShader)
+    GLuint& RenderGaussBlur(Shader& postProcessShader, GLuint& colorBuffer)
     {
         bool horizontal = true, first_iteration = true;
         int amount = 10;
@@ -93,7 +104,7 @@ public:
             glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
             shaderBlur.setInt("horizontal", horizontal);
             glBindTexture(
-                GL_TEXTURE_2D, first_iteration ? colorBuffers[1] : pingpongBuffers[!horizontal]
+                GL_TEXTURE_2D, first_iteration ? colorBuffer : pingpongBuffers[!horizontal]
             );
             renderQuad();
             horizontal = !horizontal;
@@ -105,16 +116,19 @@ public:
         // Set bloom values for main shader (PBR.vert/frag)
         postProcessShader.use();
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, colorBuffers[0]);
-        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, colorBuffer);
+        postProcessShader.setInt("bloomBlur", 11);
+        glActiveTexture(GL_TEXTURE11);
         glBindTexture(GL_TEXTURE_2D, pingpongBuffers[!horizontal]);
-        postProcessShader.setInt("bloomBlur", 9);
-        postProcessShader.setInt("bloom", bloom);
+        postProcessShader.setInt("bloomBlur", 11);
+        //postProcessShader.setInt("bloom", bloom);
         postProcessShader.setFloat("exposure", exposure);
-        renderQuad();
+
+        // debug texture blurred returned
+        return pingpongBuffers[!horizontal];
 
         // debug Bloom
-        std::cout << "bloom: " << (bloom ? "on" : "off") << "| exposure: " << exposure << std::endl;
+        std::cout << "exposure: " << exposure << std::endl;
 
     }
 

@@ -232,6 +232,11 @@ int main()
     Bloom bloom(screen_width, screen_height, shaderBlur);
     PostProcess postProcess(postProcessShader);
 
+    shaderBlur.use();
+    glUniform1i(glGetUniformLocation(shaderBlur.ID, "screenTexture"), 0);
+    glUniform1i(glGetUniformLocation(shaderBlur.ID, "bloomBlur"), 1);
+
+
     // configure default shader FBO
     // ----------------------------
     postProcess.Use();
@@ -239,7 +244,7 @@ int main()
     glGenFramebuffers(1, &defFBO);
     glBindFramebuffer(GL_FRAMEBUFFER, defFBO);
     //glDrawBuffers(2, attachments);
-    // create color texture
+    // create color texture (default for post process render)
     unsigned int defColorBuffer;
     glGenTextures(1, &defColorBuffer);
     glBindTexture(GL_TEXTURE_2D, defColorBuffer);
@@ -247,6 +252,21 @@ int main()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, defColorBuffer, 0);
+    // second attachment for blur (texture)
+    unsigned int bloomTexture;
+    glGenTextures(1, &bloomTexture);
+    glBindTexture(GL_TEXTURE_2D, bloomTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, screen_width, screen_height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    /*glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);*/
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, bloomTexture, 0);
+    
+    GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, attachments);
+
+    
     unsigned int rbo;
     glGenRenderbuffers(1, &rbo);
     glBindRenderbuffer(GL_RENDERBUFFER, rbo);
@@ -271,7 +291,8 @@ int main()
     // --------------------
     shader.use();
     shader.setInt("shadowMap", 8);
-    shader.setInt("bloomBlur", 9);  // bloom blur map
+    postProcessShader.use();
+    shader.setInt("bloomBlur", 11);  // bloom blur map
     debugDepthQuad.use();
     debugDepthQuad.setInt("depthMap", 0);
 
@@ -519,7 +540,7 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-#pragma endregion pbr:configure (200 lines)
+#pragma endregion pbr:configure (~200 lines)
 
     // ImGUI
     // -----
@@ -702,22 +723,20 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
         renderCube();
-        glDisable(GL_DEPTH_TEST);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-       
+        
         // Bloom
         // -----
-        shaderBlur.use();  // send rendered texture to be blurred
-        glActiveTexture(GL_TEXTURE12);
-        glBindTexture(GL_TEXTURE_2D, defColorBuffer);
-        bloom.RenderGaussBlur(postProcessShader);
-       
+        glDisable(GL_DEPTH_TEST);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        unsigned int blurredDebugTexture;
+        blurredDebugTexture = bloom.RenderGaussBlur(postProcessShader, bloomTexture);  // make blur
         // clear all relevant buffers
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f); // set clear color to white (not really necessary actually, since we won't be able to see behind the quad anyways)
-        glClear(GL_COLOR_BUFFER_BIT);
         postProcess.Use();
-        //glActiveTexture(GL_TEXTURE10);
-        glBindTexture(GL_TEXTURE_2D, defColorBuffer);	// use the color attachment texture as the texture of the quad plane
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, defColorBuffer);	// use the color attachment texture as the texture of the quad 
+        //glActiveTexture(GL_TEXTURE1);
+        //glBindTexture(GL_TEXTURE_2D, bloomTexture);	// use the color attachment texture as the texture of the quad 
+
         renderQuad();
 
 

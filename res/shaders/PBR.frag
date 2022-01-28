@@ -8,11 +8,6 @@ in vec3 WorldPos;
 in vec3 Normal;
 in vec4 lightProjectionOut;  // added for shadow maps
 
-// Bloom
-uniform sampler2D scene;
-uniform bool bloom;
-uniform float exposure;
-
 // material parameters
 layout(binding = 3) uniform sampler2D albedoMap;
 layout(binding = 4) uniform sampler2D normalMap;
@@ -236,12 +231,11 @@ void main()
 
     FragColor = vec4(color , 1.0);
 
-    //vgordan
+    // bloom: send brightest colors to the texture
     float brightness = dot(color, vec3(0.2126, 0.7152, 0.0722));
     if(brightness > 0.15)
         BrightColor = vec4(color, 1.0);
     else
-        BrightColor = vec4(1.0, 1.0, 1.0, 1.0);
+        BrightColor = vec4(0.0, 0.0, 0.0, 1.0);
 
 }
-
