@@ -154,7 +154,6 @@ int main()
     }
 
     // configure global opengl state
-    // 
     glEnable(GL_DEPTH_TEST);
     // set depth function to less than AND equal for skybox depth trick.
     glDepthFunc(GL_LEQUAL);
@@ -549,11 +548,6 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
     shader.use();
     shader.setMat4("projection", projection);
 
-    // then before rendering, configure the viewport to the original framebuffer's screen dimensions
-    int scrWidth, scrHeight;
-    glfwGetFramebufferSize(window, &scrWidth, &scrHeight);
-    glViewport(0, 0, scrWidth, scrHeight);
-
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
@@ -693,6 +687,18 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         shader.setVec3("lightPos", lightPos);
         shader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
         RenderScene(shader, goDefaultCube);
+
+        // render skybox (render as last to prevent overdraw)
+        // jeœli glDisable to renderuje tylko skyboxa XD
+        glEnable(GL_DEPTH_TEST);
+        view = camera.GetViewMatrix();
+        backgroundShader.use();
+        backgroundShader.setMat4("view", view);
+        backgroundShader.setMat4("projection", projection);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+        renderCube();
+        glDisable(GL_DEPTH_TEST);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
        
         // render scene with PBR
@@ -711,17 +717,6 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
 
         // bloom
         //bloom.RenderGaussBlur(shader);
-
-        // render skybox (render as last to prevent overdraw)
-        // jeœli glDisable to renderuje tylko skyboxa XD
-        glEnable(GL_DEPTH_TEST);
-        view = camera.GetViewMatrix();
-        backgroundShader.use();
-        backgroundShader.setMat4("view", view);
-        backgroundShader.setMat4("projection", projection);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
-        renderCube();
 
         // ImGui
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
