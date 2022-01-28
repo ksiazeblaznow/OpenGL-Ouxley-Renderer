@@ -3,7 +3,6 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include <stdio.h>
-#include <ImGuizmo.h>
 
 // About OpenGL function loaders: modern OpenGL doesn't have a standard header file and requires individual function pointers to be loaded manually. 
 // Helper libraries are often used for this purpose! Here we are supporting a few common ones: gl3w, glew, glad.
@@ -25,6 +24,9 @@
 #include "GameObject.h"
 #include "Framebuffer.h"
 #include "Shader.h"
+#include "ImGuiManager.h"
+#include "PostProcess.h"
+#include "Bloom.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -43,11 +45,11 @@ void renderSphere();
 void renderCube();
 void renderQuad();
 void RenderScene(Shader& _shader, GameObject& gameObject);
+void TranslateModel(Shader& shader, glm::vec3 translation = { 0.f, 0.f, 0.f }, glm::vec3 scale = { 1.f, 1.f, 1.f });
 
 // settings
 const extern unsigned int screen_width = 1280;
 const extern unsigned int screen_height = 720;
-
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -188,7 +190,7 @@ int main()
 
     // configure depth map FBO
     // -----------------------
-    const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+    const unsigned int SHADOW_WIDTH = 2048, SHADOW_HEIGHT = 2048;
     unsigned int depthMapFBO;
     glGenFramebuffers(1, &depthMapFBO);
     // create depth texture
@@ -223,16 +225,53 @@ int main()
     // Shadow Mapping shader
     Shader simpleDepthShader("../../res/shaders/shadowMapDepth.vert", "../../res/shaders/shadowMapDepth.frag");
     Shader debugDepthQuad("../../res/shaders/debug_quad.vert", "../../res/shaders/debug_quad_depth.frag");
-   
+    Shader shaderBlur    ("../../res/shaders/Bloom/Gauss.vert","../../res/shaders/Bloom/Gauss.frag");
+    Shader postProcessShader("../../res/shaders/Bloom/postProcess.vert", "../../res/shaders/Bloom/postProcess.frag");
+
+    // Bloom #bloom
+    // ------------
+    Bloom bloom(screen_width, screen_height, shaderBlur);
+    PostProcess postProcess(postProcessShader);
+
+    // configure default shader FBO
+    // ----------------------------
+    postProcess.Use();
+    unsigned int defFBO;
+    glGenFramebuffers(1, &defFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, defFBO);
+    // create color texture
+    unsigned int defColorBuffer;
+    glGenTextures(1, &defColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, defColorBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screen_width, screen_height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, defColorBuffer, 0);
+    unsigned int rbo;
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, screen_width, screen_height); // use a single renderbuffer object for both a depth AND stencil buffer.
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, defColorBuffer, 0);  // b-will yt
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo); // now actually attach it
+    // now that we actually created the framebuffer and added all attachments we want to check if it is actually complete now
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << endl;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Load models and resources
     // -------------------------
     GameObject goDefaultCube("../../res/models/defaultCube.obj");
+    // with Manager:
+    ImGuiManager manager;
+    manager.PushObject(std::make_shared<GameObject>("../../res/models/defaultCube.obj"));
+    manager.PushObject(std::make_shared<GameObject>("../../res/models/defaultCube.obj"));
+    manager.PushObject(std::make_shared<GameObject>("../../res/models/defaultCube.obj"));
 
     // shader configuration
     // --------------------
     shader.use();
     shader.setInt("shadowMap", 8);
+    shader.setInt("bloomBlur", 9);  // bloom blur map
     debugDepthQuad.use();
     debugDepthQuad.setInt("depthMap", 0);
 
@@ -270,13 +309,12 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
     shader.setInt("metallicMap", 5);
     shader.setInt("roughnessMap", 6);
     shader.setInt("aoMap", 7);
-    //shader.setInt("shadowMap", 8);
 
-#pragma region SkyBox
     // SkyBox
     backgroundShader.use();
     backgroundShader.setInt("environmentMap", 0);
-#pragma endregion
+
+#pragma region pbr:configure
     // skybox is the limit
     // pbr: framebuffer
     // ----------------
@@ -481,6 +519,8 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+#pragma endregion pbr:configure (200 lines)
+
     // ImGUI
     // -----
     IMGUI_CHECKVERSION();
@@ -523,9 +563,7 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-
         glfwPollEvents();
-
         // input (exp)
         processInput(window);
         glfwSetCursorPosCallback(window, mouse_callback);
@@ -591,6 +629,8 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
 
 #pragma endregion ImGui
 
+        glEnable(GL_DEPTH_TEST);
+
         int display_w, display_h;
         glfwMakeContextCurrent(window);
         glfwGetFramebufferSize(window, &display_w, &display_h);
@@ -606,25 +646,44 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         lightSpaceMatrix = lightProjection * lightView;
         // render scene from light's point of view
         simpleDepthShader.use();
-        simpleDepthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+        simpleDepthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);  // tutaj
 
         glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
         glClear(GL_DEPTH_BUFFER_BIT);
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, albedo);
+        glBindTexture(GL_TEXTURE_2D, depthMap);  // #TODO why albedo??
         RenderScene(simpleDepthShader, goDefaultCube);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-        // reset viewport
+        // Bind pre-computed IBL data & reset viewport
+        // --------------------------
         glViewport(0, 0, screen_width, screen_height);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // 2. render scene as normal using the generated depth/shadow map  
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
+
+
+        
+
+        // 2. render scene as normal using the generated depth/shadow map
         // --------------------------------------------------------------
-        glViewport(0, 0, screen_width, screen_height);
+        //glViewport(0, 0, screen_width, screen_height);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, defFBO);
+        glEnable(GL_DEPTH_TEST);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // bind default framebuffer
+        glActiveTexture(GL_TEXTURE10);
+        glBindTexture(GL_TEXTURE_2D, defColorBuffer);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         shader.use();
+        shader.setVec3("camPos", camera.Position);
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)screen_width / (float)screen_height, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
         shader.setMat4("projection", projection);
@@ -633,74 +692,30 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         shader.setVec3("camPos", camera.Position);
         shader.setVec3("lightPos", lightPos);
         shader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, albedo);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, depthMap);
         RenderScene(shader, goDefaultCube);
-
-        // render Depth map to quad for visual debugging
-        // ---------------------------------------------
-        debugDepthQuad.use();
-        debugDepthQuad.setFloat("near_plane", near_plane);
-        debugDepthQuad.setFloat("far_plane", far_plane);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, depthMap);
-        //renderQuad();
-
-        // END OF LEARNOPENGL
-
-        // Load metal material
-        // -------------------
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_2D, albedo);
-        glActiveTexture(GL_TEXTURE4);
-        glBindTexture(GL_TEXTURE_2D, normal);
-        glActiveTexture(GL_TEXTURE5);
-        glBindTexture(GL_TEXTURE_2D, metallic);
-        glActiveTexture(GL_TEXTURE6);
-        glBindTexture(GL_TEXTURE_2D, roughness);
-        glActiveTexture(GL_TEXTURE7);
-        glBindTexture(GL_TEXTURE_2D, ao);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        // reset viewport
-        glViewport(0, 0, screen_width, screen_height);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // bind pre-computed IBL data
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
-
-        projection = glm::perspective(glm::radians(45.0f), (float)screen_width / (float)screen_height, 0.1f, 1000.0f);
-        view = camera.GetViewMatrix();
-        // render scene
-        // ------------
-        shader.use();
-        shader.setMat4("view", view);
-        shader.setVec3("camPos", camera.Position);
-        view = camera.GetViewMatrix();
-        projection = glm::perspective(glm::radians(45.0f), (float)screen_width / (float)screen_height, 0.1f, 1000.0f);
-
-        // load telephone model
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_2D, TelephoneAlbedo);
-        glActiveTexture(GL_TEXTURE4);
-        glBindTexture(GL_TEXTURE_2D, TelephoneNormal);
-        glActiveTexture(GL_TEXTURE5);
-        glBindTexture(GL_TEXTURE_2D, TelephoneMetallic);
-        glActiveTexture(GL_TEXTURE6);
-        glBindTexture(GL_TEXTURE_2D, TelephoneRoughness);
-        glActiveTexture(GL_TEXTURE7);
-        glBindTexture(GL_TEXTURE_2D, TelephoneAo);
-
+       
         // render scene with PBR
-        RenderScene(shader, goDefaultCube);
+        //RenderScene(shader, goDefaultCube);
+       
+        // Render to Texture
+        // to ni¿ej jest na learnopengl i b-will, ale dzia³a tylko bez tego :<
+        //glDisable(GL_DEPTH_TEST); // disable depth test so screen-space quad isn't discarded due to depth test.
+        //// clear all relevant buffers
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f); // set clear color to white (not really necessary actually, since we won't be able to see behind the quad anyways)
+        glClear(GL_COLOR_BUFFER_BIT);
+        postProcess.Use();
+        //glActiveTexture(GL_TEXTURE10);
+        glBindTexture(GL_TEXTURE_2D, defColorBuffer);	// use the color attachment texture as the texture of the quad plane
+        renderQuad();
+
+        // bloom
+        //bloom.RenderGaussBlur(shader);
 
         // render skybox (render as last to prevent overdraw)
+        // jeœli glDisable to renderuje tylko skyboxa XD
+        glEnable(GL_DEPTH_TEST);
+        view = camera.GetViewMatrix();
         backgroundShader.use();
         backgroundShader.setMat4("view", view);
         backgroundShader.setMat4("projection", projection);
@@ -765,8 +780,7 @@ void RenderScene(Shader& _shader, GameObject& gameObject)
     glActiveTexture(GL_TEXTURE7);
     glBindTexture(GL_TEXTURE_2D, ao);
 
-    model = glm::mat4(1.0f);
-    _shader.setMat4("model", model);
+    TranslateModel(_shader, glm::vec3(1.f));
     renderSphere();
 
     // render light source (simply re-render sphere at light positions)
@@ -779,36 +793,40 @@ void RenderScene(Shader& _shader, GameObject& gameObject)
         _shader.setVec3("lightPositions[" + std::to_string(i) + "]", newPos);
         _shader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
 
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, newPos);
-        model = glm::scale(model, glm::vec3(0.5f));
-        _shader.setMat4("model", model);
+        TranslateModel(_shader, newPos, glm::vec3(0.5f));
         renderSphere();
     }
 
     // load telephone model
     glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, TelephoneAlbedo);
+    glBindTexture(GL_TEXTURE_2D, PanelsAlbedo);
     glActiveTexture(GL_TEXTURE4);
-    glBindTexture(GL_TEXTURE_2D, TelephoneNormal);
+    glBindTexture(GL_TEXTURE_2D, PanelsNormal);
     glActiveTexture(GL_TEXTURE5);
-    glBindTexture(GL_TEXTURE_2D, TelephoneMetallic);
+    glBindTexture(GL_TEXTURE_2D, PanelsMetallic);
     glActiveTexture(GL_TEXTURE6);
-    glBindTexture(GL_TEXTURE_2D, TelephoneRoughness);
+    glBindTexture(GL_TEXTURE_2D, PanelsRoughness);
     glActiveTexture(GL_TEXTURE7);
-    glBindTexture(GL_TEXTURE_2D, TelephoneAo);
+    glBindTexture(GL_TEXTURE_2D, PanelsAo);
 
-    // Render Game Object
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(0.0, 2.0, 0.0));
-    _shader.setMat4("model", model);
-    gameObject.transform.pos = { 0.f, 0.f, 0.f };
-    gameObject.updateSelfAndChildren();
-    _shader.setMat4("model", gameObject.transform.modelMatrix);
-    gameObject.Draw(_shader);
+    TranslateModel(_shader, glm::vec3(0.f, 8.f, 0.f));
+    renderCube();
+    TranslateModel(_shader, glm::vec3(0.f, 14.f, 0.f), glm::vec3(3.f));
+    renderCube();
 
+    TranslateModel(_shader, glm::vec3(0.f, 4.f, 0.f));
 }
 
+void TranslateModel(Shader& shader, glm::vec3 translation, glm::vec3 scale)
+{
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, translation);
+    model = glm::scale(model, scale);
+    shader.setMat4("model", model);
+}
+
+
+#pragma region functions
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
 void processInput(GLFWwindow* window)
@@ -1120,3 +1138,5 @@ GLuint loadTexture(char const* path)
 
     return textureID;
 }
+
+#pragma endregion functions

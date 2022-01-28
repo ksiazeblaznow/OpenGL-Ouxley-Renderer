@@ -1,17 +1,17 @@
 
 #version 330 core
-out vec4 FragColor;
+layout (location=0) out vec4 FragColor;
+layout (location=1) out vec4 BrightColor;
+
 in vec2 TexCoords;
 in vec3 WorldPos;
 in vec3 Normal;
 in vec4 lightProjectionOut;  // added for shadow maps
 
-in VS_OUT {
-    vec3 FragPos;
-    vec3 Normal;
-    vec2 TexCoords;
-    vec4 FragPosLightSpace;
-} fs_in;
+// Bloom
+uniform sampler2D scene;
+uniform bool bloom;
+uniform float exposure;
 
 // material parameters
 layout(binding = 3) uniform sampler2D albedoMap;
@@ -20,13 +20,20 @@ layout(binding = 5) uniform sampler2D metallicMap;
 layout(binding = 6) uniform sampler2D roughnessMap;
 layout(binding = 7) uniform sampler2D aoMap;
 layout(binding = 8) uniform sampler2D shadowMap;
+layout(binding = 9) uniform sampler2D bloomBlur;
 
 // IBL
 uniform samplerCube irradianceMap;
 uniform samplerCube prefilterMap;
 uniform sampler2D brdfLUT;
 
-// shadow map
+// shadow map (but also standard data)
+in VS_OUT {
+    vec3 FragPos;
+    vec3 Normal;
+    vec2 TexCoords;
+    vec4 FragPosLightSpace;
+} fs_in;
 
 // lights
 uniform vec3 lightPositions[4];
@@ -34,8 +41,7 @@ uniform vec3 lightColors[4];
 
 // directional light
 uniform vec3 lightPos;
-
-uniform vec3 camPos;
+uniform vec3 camPos;  // 
 
 const float PI = 3.14159265359;
 // ----------------------------------------------------------------------------
@@ -148,7 +154,7 @@ void main()
     float metallic = texture(metallicMap, TexCoords).r;
     float roughness = texture(roughnessMap, TexCoords).r;
     float ao = texture(aoMap, TexCoords).r;
-       
+    
     // input lighting data
     vec3 N = getNormalFromMap();
     vec3 V = normalize(camPos - WorldPos);
@@ -185,13 +191,13 @@ void main()
         // be above 1.0 (unless the surface emits light); to preserve this
         // relationship the diffuse component (kD) should equal 1.0 - kS.
         vec3 kD = vec3(1.0) - kS;
-        // multiply kD by the inverse metalness such that only non-metals 
+        // multiply kD by the inverse metalness such that only non-metals
         // have diffuse lighting, or a linear blend if partly metal (pure metals
         // have no diffuse light).
-        kD *= 1.0 - metallic;	                
-            
+        kD *= 1.0 - metallic;
+        
         // scale light by NdotL
-        float NdotL = max(dot(N, L), 0.0);        
+        float NdotL = max(dot(N, L), 0.0);
 
         // add to outgoing radiance Lo
         Lo += (kD * albedo / PI + specular) * radiance * NdotL; // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
@@ -219,11 +225,30 @@ void main()
     float shadow = ShadowCalculation(fs_in.FragPosLightSpace);
     vec3 color = ambient + Lo * (1 - shadow);
 
+    // Bloom before HDR and Gamma Correction
+    vec3 bloomColor = texture(bloomBlur, TexCoords).rgb;
+    //color += bloomColor;
+
     // HDR tonemapping
     color = color / (color + vec3(1.0));
     // gamma correct
-    color = pow(color, vec3(1.0/2.2)); 
+    //color = pow(color, vec3(1.0/2.2));
+
+    // check whether result is higher than some threshold, if so, output as bloom threshold color
+    //float brightness = dot(color, vec3(0.2126, 0.7152, 0.0722));
+    //if(brightness > 1.0)
+    //    BrightColor = vec4(color, 1.0);
+    //else
+    //    BrightColor = vec4(0.0, 0.0, 0.0, 1.0);
 
     FragColor = vec4(color , 1.0);
+
+    //vgordan
+    float brightness = dot(color, vec3(0.2126, 0.7152, 0.0722));
+    if(brightness > 0.15)
+        BrightColor = vec4(color, 1.0);
+    else
+        BrightColor = vec4(0.0, 0.0, 0.0, 1.0);
+
 }
 
