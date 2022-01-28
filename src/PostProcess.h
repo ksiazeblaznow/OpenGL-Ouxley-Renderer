@@ -10,7 +10,7 @@ class PostProcess
 public:
 	Shader *shader;
 
-	// Takes postProcessShader to itself
+	// Takes postProcessShader to itself	
 	PostProcess(Shader &shader)
 	{
 		this->shader = &shader;

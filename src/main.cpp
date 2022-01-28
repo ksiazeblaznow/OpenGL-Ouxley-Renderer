@@ -238,6 +238,7 @@ int main()
     unsigned int defFBO;
     glGenFramebuffers(1, &defFBO);
     glBindFramebuffer(GL_FRAMEBUFFER, defFBO);
+    //glDrawBuffers(2, attachments);
     // create color texture
     unsigned int defColorBuffer;
     glGenTextures(1, &defColorBuffer);
@@ -704,13 +705,14 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         glDisable(GL_DEPTH_TEST);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
        
-        // render scene with PBR
-        //RenderScene(shader, goDefaultCube);
+        // Bloom
+        // -----
+        shaderBlur.use();  // send rendered texture to be blurred
+        glActiveTexture(GL_TEXTURE12);
+        glBindTexture(GL_TEXTURE_2D, defColorBuffer);
+        bloom.RenderGaussBlur(postProcessShader);
        
-        // Render to Texture
-        // to ni¿ej jest na learnopengl i b-will, ale dzia³a tylko bez tego :<
-        //glDisable(GL_DEPTH_TEST); // disable depth test so screen-space quad isn't discarded due to depth test.
-        //// clear all relevant buffers
+        // clear all relevant buffers
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f); // set clear color to white (not really necessary actually, since we won't be able to see behind the quad anyways)
         glClear(GL_COLOR_BUFFER_BIT);
         postProcess.Use();
@@ -718,8 +720,6 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         glBindTexture(GL_TEXTURE_2D, defColorBuffer);	// use the color attachment texture as the texture of the quad plane
         renderQuad();
 
-        // bloom
-        //bloom.RenderGaussBlur(shader);
 
         // ImGui
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

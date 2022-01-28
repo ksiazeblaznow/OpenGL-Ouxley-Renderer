@@ -27,6 +27,9 @@ public:
     Bloom(int screenW, int screenH, Shader& shaderBlur)
         : screenW(screenW), screenH(screenH), shaderBlur(shaderBlur)
     {
+        shaderBlur.use();
+        shaderBlur.setInt("image", 12);
+
         setupFBO();
         //RenderGaussBlur();
     }
@@ -80,7 +83,7 @@ public:
     }
 
     // Set main shader
-    void RenderGaussBlur(Shader& mainShader)
+    void RenderGaussBlur(Shader& postProcessShader)
     {
         bool horizontal = true, first_iteration = true;
         int amount = 10;
@@ -100,10 +103,14 @@ public:
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Set bloom values for main shader (PBR.vert/frag)
-        mainShader.use();
-        mainShader.setInt("bloomBlur", 9);
-        mainShader.setInt("bloom", bloom);
-        mainShader.setFloat("exposure", exposure);
+        postProcessShader.use();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, colorBuffers[0]);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, pingpongBuffers[!horizontal]);
+        postProcessShader.setInt("bloomBlur", 9);
+        postProcessShader.setInt("bloom", bloom);
+        postProcessShader.setFloat("exposure", exposure);
         renderQuad();
 
         // debug Bloom
