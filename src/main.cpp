@@ -28,6 +28,8 @@
 #include "PostProcess.h"
 #include "Bloom.h"
 #include "Gizmoes.h"
+#include "ComputeShader.h"
+#include "ParticleSystem.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -231,6 +233,15 @@ int main()
     Shader debugDepthQuad("../../res/shaders/debug_quad.vert", "../../res/shaders/debug_quad_depth.frag");
     Shader shaderBlur    ("../../res/shaders/Bloom/Gauss.vert","../../res/shaders/Bloom/Gauss.frag");
     Shader postProcessShader("../../res/shaders/Bloom/postProcess.vert", "../../res/shaders/Bloom/postProcess.frag");
+    
+    // Set Compute Shader
+    // ------------------
+    ComputeShader computeShader("../../res/shaders/Particles/Particles.comp");
+    //Shader particleStandardShader("../../res/shaders/Particles/Particles.vert", "../../res/shaders/Particles/Particles.frag");
+    //computeShader.SetFloat("deltaTime", deltaTime);
+    //ParticleSystem particleSystem;
+    /*particleSystem.Setup();
+    particleSystem.Run(computeShader, particleStandardShader);*/
 
     // Bloom #bloom
     // ------------
@@ -240,7 +251,6 @@ int main()
     shaderBlur.use();
     glUniform1i(glGetUniformLocation(shaderBlur.ID, "screenTexture"), 0);
     glUniform1i(glGetUniformLocation(shaderBlur.ID, "bloomBlur"), 1);
-
 
     // configure default shader FBO
     // ----------------------------
