@@ -27,6 +27,7 @@
 #include "ImGuiManager.h"
 #include "PostProcess.h"
 #include "Bloom.h"
+#include "Gizmoes.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -46,6 +47,8 @@ void renderCube();
 void renderQuad();
 void RenderScene(Shader& _shader, GameObject& gameObject);
 void TranslateModel(Shader& shader, glm::vec3 translation = { 0.f, 0.f, 0.f }, glm::vec3 scale = { 1.f, 1.f, 1.f });
+void RenderGameObjects(Shader& shader);
+std::shared_ptr<GameObject> GetSelectedGameObject();
 
 // settings
 const extern unsigned int screen_width = 1280;
@@ -99,6 +102,8 @@ GLuint TelephoneRoughness;
 GLuint        TelephoneAo;
 
 unsigned int planeVAO;
+
+std::vector<std::shared_ptr<GameObject>> gameObjectsList;
 
 int main()
 {
@@ -281,12 +286,7 @@ int main()
     // Load models and resources
     // -------------------------
     GameObject goDefaultCube("../../res/models/defaultCube.obj");
-    // with Manager:
-    ImGuiManager manager;
-    manager.PushObject(std::make_shared<GameObject>("../../res/models/defaultCube.obj"));
-    manager.PushObject(std::make_shared<GameObject>("../../res/models/defaultCube.obj"));
-    manager.PushObject(std::make_shared<GameObject>("../../res/models/defaultCube.obj"));
-
+   
     // shader configuration
     // --------------------
     shader.use();
@@ -570,6 +570,32 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
     shader.use();
     shader.setMat4("projection", projection);
 
+    // glm::mat4 bcs light is weird
+    float aaa[16] = {
+        1, 1, 1, 1,
+        -1, -1, -1, 1,
+        1, 1, 1, 1,
+        1, 1, 1, 1
+    };
+
+    // game objects : scene graph
+    // --------------------------
+    /*std::vector<GameObject> gameObjectsList;
+    gameObjectsList.push_back(GameObject("../../res/models/defaultCube.obj"));
+    gameObjectsList.push_back(GameObject("../../res/models/defaultCube.obj"));*/
+    GameObject gameObj("../../res/models/defaultCube.obj");
+    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/defaultCube.obj"));
+    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/defaultCube.obj"));
+    gameObjectsList[1]->transform.pos = { 2.f, 0.5f, 2.f };
+    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/defaultCube.obj"));
+    gameObjectsList[2]->transform.pos = { -2.f, 2.5f, 2.f };
+    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/gizmoArrow.obj")); // [3]: Light position
+    gameObjectsList[3]->transform.rot = { 90.f, 0.f, 0.f };
+    gameObjectsList[3]->transform.pos = { 0.f, 9.f, -3.f };
+
+    // ImGuizmo class
+    Gizmoes gizmoes(screen_width, screen_height);
+
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
@@ -592,9 +618,65 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        // Call ImGuizmo (under ImGui::NewFrame())
+        // ---------------------------------------
+
         // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
         if (show_demo_window)
             ImGui::ShowDemoWindow(&show_demo_window);
+
+#pragma region ImGui: Graph Scene
+        gizmoes.Run(camera);
+        // ImGui: graph scene window
+        ImGui::Begin("Scene graph");
+        ImGui::Text("Scene graph...");
+        // add game objects from list
+        for (int i = 0; i < gameObjectsList.size(); i++)
+        {
+            float p[3], r[3], s[3];
+            p[0] = gameObjectsList[i]->transform.pos.x;
+            p[1] = gameObjectsList[i]->transform.pos.y;
+            p[2] = gameObjectsList[i]->transform.pos.z;
+            r[0] = gameObjectsList[i]->transform.rot.x;
+            r[1] = gameObjectsList[i]->transform.rot.y;
+            r[2] = gameObjectsList[i]->transform.rot.z;
+            s[0] = gameObjectsList[i]->transform.scale.x;
+            s[1] = gameObjectsList[i]->transform.scale.y;
+            s[2] = gameObjectsList[i]->transform.scale.z;
+
+            std::string _s = "Object No. " + std::to_string(i);
+            char const* pchar = _s.c_str();  //use char const* as target type
+            // By now it's Selected when it's collapsed (opened)
+            if (gameObjectsList[i]->isSelected = ImGui::TreeNode(pchar))
+            {
+                ImGui::SliderFloat3("pos", p, -10.f, 10.f);
+                //ImGui::TreePop();
+                ImGui::SliderFloat3("rot", r, -180.f, 180.f);
+                //ImGui::TreePop();
+                ImGui::SliderFloat3("scale", s, -1.f, 5.f);
+                ImGui::TreePop();
+                ImGui::Selectable("Select me", &gameObjectsList[i]->isSelected);
+
+                // unselect other once another is selected  #might be slowing program
+                /*if(gameObjectsList[i]->isSelected)
+                    for (int j = 0; j < gameObjectsList.size(); j++) {
+                        if (j == i);
+                        else gameObjectsList[j]->isSelected = false;
+                    }*/
+            }
+            gameObjectsList[i]->transform.pos.x = p[0];
+            gameObjectsList[i]->transform.pos.y = p[1];
+            gameObjectsList[i]->transform.pos.z = p[2];
+            gameObjectsList[i]->transform.rot.x = r[0];
+            gameObjectsList[i]->transform.rot.y = r[1];
+            gameObjectsList[i]->transform.rot.z = r[2];
+            gameObjectsList[i]->transform.scale.x = s[0];
+            gameObjectsList[i]->transform.scale.y = s[1];
+            gameObjectsList[i]->transform.scale.z = s[2];
+
+        }
+#pragma endregion
+        ImGui::End();
 
         // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
         {
@@ -658,7 +740,7 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         float near_plane = 1.0f, far_plane = 7.5f;
         //lightProjection = glm::perspective(glm::radians(45.0f), (GLfloat)SHADOW_WIDTH / (GLfloat)SHADOW_HEIGHT, near_plane, far_plane); // note that if you use a perspective projection matrix you'll have to change the light position as the current light position isn't enough to reflect the whole scene
         lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
-        lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
+        lightView = gameObjectsList[3]->transform.getLocalModelMatrix();
         lightSpaceMatrix = lightProjection * lightView;
         // render scene from light's point of view
         simpleDepthShader.use();
@@ -713,6 +795,12 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         shader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
         RenderScene(shader, goDefaultCube);
 
+        // scene graph debug render (move to RenderScene())
+        // ------------------------------------------------
+        gameObjectsList[0]->transform.rot.y += 20 * deltaTime;
+        gameObjectsList[0]->transform.rot.x += 40 * deltaTime;
+        
+
         // render skybox (render as last to prevent overdraw)
         // jeœli glDisable to renderuje tylko skyboxa XD
         glEnable(GL_DEPTH_TEST);
@@ -730,13 +818,6 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         unsigned int blurredDebugTexture;
         blurredDebugTexture = bloom.RenderGaussBlur(postProcessShader, bloomTexture);  // make blur
-        // clear all relevant buffers
-        postProcess.Use();
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, defColorBuffer);	// use the color attachment texture as the texture of the quad 
-        //glActiveTexture(GL_TEXTURE1);
-        //glBindTexture(GL_TEXTURE_2D, bloomTexture);	// use the color attachment texture as the texture of the quad 
-
         renderQuad();
 
 
@@ -814,6 +895,8 @@ void RenderScene(Shader& _shader, GameObject& gameObject)
         renderSphere();
     }
 
+    RenderGameObjects(_shader);
+
     // load telephone model
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, PanelsAlbedo);
@@ -834,6 +917,19 @@ void RenderScene(Shader& _shader, GameObject& gameObject)
     TranslateModel(_shader, glm::vec3(0.f, 4.f, 0.f));
 }
 
+
+// Render game objects to scene (iterative)
+void RenderGameObjects(Shader& shader)
+{
+    for (int i = 0; i < gameObjectsList.size(); i++)
+    {
+        shader.setMat4("model", gameObjectsList[i]->transform.modelMatrix);
+        gameObjectsList[i]->Draw(shader);
+        gameObjectsList[i]->updateSelfAndChildren();
+    }
+}
+
+// Translate model matrix so the next object you render will have that translation
 void TranslateModel(Shader& shader, glm::vec3 translation, glm::vec3 scale)
 {
     glm::mat4 model = glm::mat4(1.0f);
@@ -842,6 +938,15 @@ void TranslateModel(Shader& shader, glm::vec3 translation, glm::vec3 scale)
     shader.setMat4("model", model);
 }
 
+std::shared_ptr<GameObject> GetSelectedGameObject()
+{
+    for (int i = 0; i < gameObjectsList.size(); i++)
+    {
+        if (gameObjectsList[i]->isSelected)
+            return gameObjectsList[i];
+    }
+    return nullptr;
+}
 
 #pragma region functions
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly

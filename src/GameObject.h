@@ -3,9 +3,8 @@
 #include "Model.h"
 #include <list>
 #include <memory>
-#include <string>
 
-//class Model;
+class Model;
 
 struct Transform
 {
@@ -46,16 +45,16 @@ struct Transform
 class GameObject : public Model
 {
 private:
-	//const char* name;			// unikalna nazwa
+	const char* name;			// unikalna nazwa
+
 
 public:
-	GameObject() = default;
-
+	bool isSelected = false;  // changeable in ImGui scene graph for ImGuizmo specific
 	Transform transform;
 	GameObject* parent = nullptr;
 	std::list<std::unique_ptr<GameObject>> children;
 
-	GameObject(std::string const& path, bool gamma = false)
+	GameObject(string const& path, bool gamma = false)
 		: Model(path, gamma) {  }
 	//~GameObject();
 
