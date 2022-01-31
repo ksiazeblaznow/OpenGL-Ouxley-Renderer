@@ -81,7 +81,7 @@ void ParticleSystemComp::Render(Shader& particleShader, glm::mat4 modelMatrix,
 	//particleShader.setInt("u_Sprite", 0);
 	//particleShader.setVec4("u_Color", glm::vec4(0.4f, 6.0f, 7.0f, std::clamp((m_ParticleLifeTime - m_ParticlesLifeTimeCounter), 0.0f, 1.0f)));
 
-	glDisable(GL_CULL_FACE);
+	//glDisable(GL_CULL_FACE);
 
 	glBindVertexArray(m_ParticleVAO);
 
@@ -95,7 +95,7 @@ void ParticleSystemComp::Render(Shader& particleShader, glm::mat4 modelMatrix,
 
 	glBindVertexArray(0);
 
-	glEnable(GL_CULL_FACE);
+	//glEnable(GL_CULL_FACE);
 	glDisable(GL_BLEND);
 }
 
