@@ -89,19 +89,19 @@ public:
 	{
 		//compShader.Use();
 
-		/*glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, posSSbo);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, posSSbo);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, colSSbo);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, velSSbo);
 
 		glDispatchCompute(NUM_PARTICLES/ WORK_GROUP_SIZE, 1, 1);
-		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);*/
+		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-		/*particleStandardShader.use();
+		particleStandardShader.use();
 		glBindBuffer(GL_ARRAY_BUFFER, posSSbo);
 		glVertexPointer(4, GL_FLOAT, 0, (void*)0);
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glDrawArrays(GL_POINTS, 0, NUM_PARTICLES);
 		glDisableClientState(GL_VERTEX_ARRAY);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);*/
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 };

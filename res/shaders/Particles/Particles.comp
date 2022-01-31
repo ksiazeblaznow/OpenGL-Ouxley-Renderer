@@ -1,6 +1,5 @@
 #version 450 core
 
-//uniform float deltaTime;
 
 layout (std140, binding = 1) buffer Position
 {

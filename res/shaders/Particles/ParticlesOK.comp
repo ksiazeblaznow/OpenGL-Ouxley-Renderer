@@ -2,19 +2,19 @@
 #extension GL_ARB_compute_shader : enable
 #extension GL_ARB_shader_storage_buffer_object : enable
 
-layout (std140, binding = 4) buffer Pos
+layout (std140, binding = 2) buffer Pos
 {
     vec4 positions[];
 };
 
-layout (std140, binding = 5) buffer Vel
+layout (std140, binding = 1) buffer Vel
 {
     vec4 velocities[];
 };
 
-layout( std140, binding=6 ) buffer Col
+layout( std140, binding=2 ) buffer Col
 {
-    vec4 Colors[ ]; // array of structures
+    vec4 Colors[]; // array of structures
 };
 
 layout (local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
@@ -65,9 +65,9 @@ void main()
     vp = BounceSphere( p, v, Sphere );
     pp = p + vp*DT + .5*DT*DT*G;
     }
-    Positions[ gid ].xyz = pp;
-    Velocities[ gid ].xyz = vp;
+    Pos[gid].xyz = pp;
+    Vel[gid].xyz = vp;
+    
     */
-
 
 }

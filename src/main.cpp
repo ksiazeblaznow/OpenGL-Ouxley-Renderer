@@ -29,7 +29,7 @@
 #include "Bloom.h"
 #include "Gizmoes.h"
 #include "ComputeShader.h"
-#include "ParticleSystem.h"
+#include "ParticleSystemComp.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -237,11 +237,13 @@ int main()
     // Set Compute Shader
     // ------------------
     ComputeShader computeShader("../../res/shaders/Particles/Particles.comp");
-    //Shader particleStandardShader("../../res/shaders/Particles/Particles.vert", "../../res/shaders/Particles/Particles.frag");
-    //computeShader.SetFloat("deltaTime", deltaTime);
+    Shader particleStandardShader("../../res/shaders/Particles/Particles.vert", "../../res/shaders/Particles/Particles.frag");
+    ParticleSystemComp particleSystemComp(computeShader);  // initialize particle system component
+    
+    // Old way:
     //ParticleSystem particleSystem;
-    /*particleSystem.Setup();
-    particleSystem.Run(computeShader, particleStandardShader);*/
+    //particleSystem.Setup();
+    //particleSystem.Run(computeShader, particleStandardShader);
 
     // Bloom #bloom
     // ------------
@@ -830,6 +832,12 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         blurredDebugTexture = bloom.RenderGaussBlur(postProcessShader, bloomTexture);  // make blur
         renderQuad();
 
+
+        // Particles using compute shader
+        // ------------------------------
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(5.0f, 0.0f, 1.0));
+        particleSystemComp.Render(particleStandardShader, model, view, projection);
 
         // ImGui
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
