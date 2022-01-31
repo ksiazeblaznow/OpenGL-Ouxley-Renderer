@@ -3,7 +3,6 @@
 #include <glad/glad.h>
 
 ComputeShader::ComputeShader(const char* path)
-    //: m_Uniforms(std::vector<ShaderUniform>())
 {
     std::string source;
     std::ifstream filestream;
@@ -12,8 +11,8 @@ ComputeShader::ComputeShader(const char* path)
     try
     {
         std::stringstream buffer;
-
         filestream.open(path);
+
         buffer << filestream.rdbuf();
         source = buffer.str();
         filestream.close();

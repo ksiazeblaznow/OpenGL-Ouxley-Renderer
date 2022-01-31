@@ -77,9 +77,6 @@ void ParticleSystemComp::Render(Shader& particleShader, glm::mat4 modelMatrix,
 	particleShader.setMat4("u_View", viewMatrix);
 	particleShader.setMat4("u_Projection", projectionMatrix);
 	particleShader.setVec2("u_SpriteSize", glm::vec2(0.03f, 0.03f));
-	//particleShader.setBool("u_IsSprite", false);
-	//particleShader.setInt("u_Sprite", 0);
-	//particleShader.setVec4("u_Color", glm::vec4(0.4f, 6.0f, 7.0f, std::clamp((m_ParticleLifeTime - m_ParticlesLifeTimeCounter), 0.0f, 1.0f)));
 
 	//glDisable(GL_CULL_FACE);
 

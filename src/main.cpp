@@ -30,6 +30,7 @@
 #include "Gizmoes.h"
 #include "ComputeShader.h"
 #include "ParticleSystemComp.h"
+#include "Instancing.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -220,36 +221,37 @@ int main()
 
     // build and compile shaders
     // -------------------------
-    Shader shader("../../res/shaders/PBR.vert", "../../res/shaders/PBR.frag");
-    Shader asteroidShader("../../res/shaders/asteroids.vert", "../../res/shaders/asteroids.frag");
-    Shader planetShader("../../res/shaders/planet.vert", "../../res/shaders/planet.frag");
     Shader equirectangularToCubemapShader("../../res/shaders/cubemap.vert", "../../res/shaders/equirectangular_to_cubemap.frag");
-    Shader irradianceShader("../../res/shaders/cubemap.vert", "../../res/shaders/irradiance_convolution.frag");
-    Shader prefilterShader("../../res/shaders/cubemap.vert", "../../res/shaders/prefilter.frag");
-    Shader brdfShader("../../res/shaders/brdf.vert", "../../res/shaders/brdf.frag");
-    Shader backgroundShader("../../res/shaders/background.vert", "../../res/shaders/background.frag");
+    Shader shader               ("../../res/shaders/PBR.vert",              "../../res/shaders/PBR.frag");
+    Shader asteroidShader       ("../../res/shaders/asteroids.vert",        "../../res/shaders/asteroids.frag");
+    Shader planetShader         ("../../res/shaders/planet.vert",           "../../res/shaders/planet.frag");
+    Shader irradianceShader     ("../../res/shaders/cubemap.vert",          "../../res/shaders/irradiance_convolution.frag");
+    Shader prefilterShader      ("../../res/shaders/cubemap.vert",          "../../res/shaders/prefilter.frag");
+    Shader brdfShader           ("../../res/shaders/brdf.vert",             "../../res/shaders/brdf.frag");
+    Shader backgroundShader     ("../../res/shaders/background.vert",       "../../res/shaders/background.frag");
     // Shadow Mapping shader
-    Shader simpleDepthShader("../../res/shaders/shadowMapDepth.vert", "../../res/shaders/shadowMapDepth.frag");
-    Shader debugDepthQuad("../../res/shaders/debug_quad.vert", "../../res/shaders/debug_quad_depth.frag");
-    Shader shaderBlur    ("../../res/shaders/Bloom/Gauss.vert","../../res/shaders/Bloom/Gauss.frag");
-    Shader postProcessShader("../../res/shaders/Bloom/postProcess.vert", "../../res/shaders/Bloom/postProcess.frag");
-    
+    Shader simpleDepthShader    ("../../res/shaders/shadowMapDepth.vert",   "../../res/shaders/shadowMapDepth.frag");
+    Shader debugDepthQuad       ("../../res/shaders/debug_quad.vert",       "../../res/shaders/debug_quad_depth.frag");
+    Shader shaderBlur           ("../../res/shaders/Bloom/Gauss.vert",      "../../res/shaders/Bloom/Gauss.frag");
+    Shader postProcessShader    ("../../res/shaders/Bloom/postProcess.vert","../../res/shaders/Bloom/postProcess.frag");
+    Shader instanceShader       ("../../res/shaders/Instancing.vert",       "../../res/shaders/Instancing.frag");
+
     // Set Compute Shader
     // ------------------
     ComputeShader computeShader("../../res/shaders/Particles/Particles.comp");
     Shader particleStandardShader("../../res/shaders/Particles/Particles.vert", "../../res/shaders/Particles/Particles.frag");
     ParticleSystemComp particleSystemComp(computeShader);  // initialize particle system component
     
-    // Old way:
-    //ParticleSystem particleSystem;
-    //particleSystem.Setup();
-    //particleSystem.Run(computeShader, particleStandardShader);
+    // instancing
+    // ----------
+    Instancing instancingComp(10000, asteroidShader, planetShader);
+    instancingComp.Generate(glfwGetTime());
+    instancingComp.Configure();
 
     // Bloom #bloom
     // ------------
     Bloom bloom(screen_width, screen_height, shaderBlur);
     PostProcess postProcess(postProcessShader);
-
     shaderBlur.use();
     glUniform1i(glGetUniformLocation(shaderBlur.ID, "screenTexture"), 0);
     glUniform1i(glGetUniformLocation(shaderBlur.ID, "bloomBlur"), 1);
@@ -298,7 +300,7 @@ int main()
     // Load models and resources
     // -------------------------
     GameObject goDefaultCube("../../res/models/defaultCube.obj");
-   
+
     // shader configuration
     // --------------------
     shader.use();
@@ -612,6 +614,8 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
     // -----------
     while (!glfwWindowShouldClose(window))
     {
+        srand(time(NULL));
+
         // per-frame time logic
         // --------------------
         float currentFrame = glfwGetTime();
@@ -782,7 +786,6 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         shader.use();
         glActiveTexture(GL_TEXTURE8);
         glBindTexture(GL_TEXTURE_2D, depthMap);
-        
 
         // 2. render scene as normal using the generated depth/shadow map
         // --------------------------------------------------------------
@@ -812,6 +815,7 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         gameObjectsList[0]->transform.rot.y += 20 * deltaTime;
         gameObjectsList[0]->transform.rot.x += 40 * deltaTime;
         
+        instancingComp.Render(screen_width, screen_height, camera);
 
         // render skybox (render as last to prevent overdraw)
         // jeœli glDisable to renderuje tylko skyboxa XD
