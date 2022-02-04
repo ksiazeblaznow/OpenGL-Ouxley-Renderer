@@ -15,9 +15,9 @@ public:
 		//m_ComputeShader = std::make_shared<ComputeShader>("../../res/shaders/Particles/Particles.comp");
 
 		m_ParticlesCount = 10000;
-		m_Radius = 3.0f;
+		m_Radius = 2.0f;
 		m_MinVelocity = glm::vec3(0.0f, 0.1f, 0.0f);
-		m_MaxVelocity = glm::vec3(0.0f, 10.f, 0.0f);
+		m_MaxVelocity = glm::vec3(0.0f, 0.5f, 0.0f);
 		m_ParticleLifeTime = 3.0f;
 		m_ParticlesLifeTimeCounter = 0.0f;
 
@@ -37,8 +37,6 @@ public:
 	GLuint m_PositionBuffer;  // glm::vec4
 	GLuint m_VelocityBuffer;  // glm::vect4
 	GLuint m_IndexBuffer;	  // uint32_t
-
-	//int32_t m_NoiseTexture;
 
 	uint32_t m_ParticleVAO;
 

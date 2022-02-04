@@ -62,7 +62,7 @@ void ParticleSystemComp::Update()
 
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_PositionBuffer);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_VelocityBuffer);
-
+	// warp wavefront (amd), dispatch, sharedMemory + computeShader
 	compShader->Use();
 
 	glDispatchCompute(m_ParticlesCount / 128, 1, 1);

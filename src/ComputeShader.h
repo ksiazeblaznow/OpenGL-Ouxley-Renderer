@@ -12,7 +12,6 @@ public:
 	void Use() const;
 
 	inline uint32_t GetID() const { return m_ID; }
-	//inline std::vector<ShaderUniform> GetUniforms() const { return m_Uniforms; }
 
 	// uniforms
 	void SetBool(const std::string& name, bool value) const;
@@ -26,10 +25,7 @@ public:
 
 private:
 	unsigned int CompileShader(const char* source);
-	//void LoadUniforms();
-
+	
 private:
 	uint32_t m_ID;
-
-	//std::vector<ShaderUniform> m_Uniforms;
 };

@@ -242,6 +242,7 @@ int main()
     Shader particleStandardShader("../../res/shaders/Particles/Particles.vert", "../../res/shaders/Particles/Particles.frag");
     ParticleSystemComp particleSystemComp(computeShader);  // initialize particle system component
     
+    
     // instancing
     // ----------
     Instancing instancingComp(10000, asteroidShader, planetShader);
@@ -606,6 +607,9 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
     gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/gizmoArrow.obj")); // [3]: Light position
     gameObjectsList[3]->transform.rot = { 90.f, 0.f, 0.f };
     gameObjectsList[3]->transform.pos = { 0.f, 9.f, -3.f };
+    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/gizmoArrow.obj")); // [3]: Light position
+
+    gameObjectsList[1]->AddChild(gameObjectsList[4].get());  // 4 is a child of 1
 
     // ImGuizmo class
     Gizmoes gizmoes(screen_width, screen_height);
@@ -841,6 +845,7 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
         // ------------------------------
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(5.0f, 0.0f, 1.0));
+        particleSystemComp.Update();
         particleSystemComp.Render(particleStandardShader, model, view, projection);
 
         // ImGui

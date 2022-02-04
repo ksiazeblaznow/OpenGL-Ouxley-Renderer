@@ -22,12 +22,6 @@ void main()
     int particleID = gl_VertexID >> 2;
     vec4 particlePos = positions[particleID];
 
-    /*  
-        gl_VertexID = 0: x = 1.0, y = 0.0
-        gl_VertexID = 1: x = 0.0, y = 0.0
-        gl_VertexID = 2: x = 0.0, y = 1.0
-        gl_VertexID = 3: x = 1.0, y = 1.0
-     */
     vec2 quadPos = vec2(((gl_VertexID - 1) & 2) >> 1, (gl_VertexID & 2) >> 1);
 
     vec4 particlePosEye = u_View * u_Model * particlePos;
