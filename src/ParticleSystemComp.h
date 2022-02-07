@@ -20,6 +20,7 @@ public:
 		m_MaxVelocity = glm::vec3(0.0f, 0.5f, 0.0f);
 		m_ParticleLifeTime = 3.0f;
 		m_ParticlesLifeTimeCounter = 0.0f;
+		center = glm::vec3(5.f, 0.f, 2.f);
 
 		// Create Shader Storage Buffer Objects for velocity, position and index
 		Begin();
@@ -47,6 +48,7 @@ public:
 	glm::vec3 m_MaxVelocity;
 	float m_ParticleLifeTime;
 	std::shared_ptr<ComputeShader> compShader;
+	glm::vec3 center;  // render position
 
 	float m_ParticlesLifeTimeCounter;
 

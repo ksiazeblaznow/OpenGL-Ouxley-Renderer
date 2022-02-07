@@ -54,8 +54,8 @@ void RenderGameObjects(Shader& shader);
 std::shared_ptr<GameObject> GetSelectedGameObject();
 
 // settings
-const extern unsigned int screen_width = 1280;
-const extern unsigned int screen_height = 720;
+const extern unsigned int screen_width = 1920;
+const extern unsigned int screen_height = 900;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -103,6 +103,30 @@ GLuint    TelephoneNormal;
 GLuint  TelephoneMetallic;
 GLuint TelephoneRoughness;
 GLuint        TelephoneAo;
+// Salarian model
+GLuint    salarianAlbedo;
+GLuint    salarianNormal;
+GLuint  salarianMetallic;
+GLuint salarianRoughness;
+GLuint        salarianAO;
+// Cephalopod model
+GLuint    cephalopodAlbedo;
+GLuint    cephalopodNormal;
+GLuint  cephalopodMetallic;
+GLuint cephalopodRoughness;
+GLuint        cephalopodAO;
+// FLying alien
+GLuint flyingAlbedo         ;
+GLuint flyingNormal         ;
+GLuint flyingMetallic       ;
+GLuint flyingRoughness      ;
+GLuint flyingAO             ;
+// Planet
+GLuint planetAlbedo;
+GLuint planetNormal;
+GLuint planetMetallic;
+GLuint planetRoughness;
+GLuint planetAO;
 
 unsigned int planeVAO;
 
@@ -335,6 +359,30 @@ PanelsRoughness = loadTexture("../../res/textures/TPanels/Panels_Roughness_2K.jp
 TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telephone_R.png");
        TelephoneAo = loadTexture("../../res/models/vintage-telephone-obj/Telephone_AO.png");
 
+   salarianAlbedo = loadTexture("../../res/models/salarian-stg/Salarian_BaseColor.png");
+   salarianNormal = loadTexture("../../res/models/salarian-stg/Salarian_Normal.png");
+ salarianMetallic = loadTexture("../../res/models/salarian-stg/Salarian_Metallic.png");
+salarianRoughness = loadTexture("../../res/models/salarian-stg/Salarian_Roughness.png");
+       salarianAO = loadTexture("../../res/models/salarian-stg/Salarian_AO.png");
+
+   cephalopodAlbedo = loadTexture("../../res/models/space-cephalopod/Albedo.png");
+   cephalopodNormal = loadTexture("../../res/models/space-cephalopod/Normal.png");
+ cephalopodMetallic = loadTexture("../../res/models/space-cephalopod/Metallic.png");
+cephalopodRoughness = loadTexture("../../res/models/space-cephalopod/Roughness.png");
+       cephalopodAO = loadTexture("../../res/models/space-cephalopod/AO.png");
+
+flyingAlbedo    = loadTexture("../../res/models/flying/BaseColor.1001.png");
+flyingNormal    = loadTexture("../../res/models/flying/Normal.1001.png");
+flyingMetallic  = loadTexture("../../res/models/flying/Metallic.1001.png");
+flyingRoughness = loadTexture("../../res/models/flying/Roughness.1001.png");
+flyingAO        = loadTexture("../../res/models/flying/AO.1001.png");
+
+planetAlbedo    = loadTexture("../../res/models/planet/scene_material_BaseColor.1001.png");
+planetNormal    = loadTexture("../../res/models/planet/scene_material_Normal.1001.png");
+planetMetallic  = loadTexture("../../res/models/planet/scene_material_Metallic.1001.png");
+planetRoughness = loadTexture("../../res/models/planet/scene_material_Roughness.1001.png");
+planetAO        = loadTexture("../../res/models/planet/scene_material_AO.1001.png");
+
     // PBR
     shader.use();
     shader.setInt("irradianceMap", 0);
@@ -368,7 +416,7 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
     // ---------------------------------
     stbi_set_flip_vertically_on_load(true);
     int width, height, nrComponents;
-    float* data = stbi_loadf("../../res/hdr/ice_lake/Ice_Lake_Ref.hdr", &width, &height, &nrComponents, 0);
+    float* data = stbi_loadf("../../res/hdr/Milkyway/Milkyway_small.hdr", &width, &height, &nrComponents, 0);
     unsigned int hdrTexture;
     if (data)
     {
@@ -585,29 +633,36 @@ TelephoneRoughness = loadTexture("../../res/models/vintage-telephone-obj/Telepho
     shader.use();
     shader.setMat4("projection", projection);
 
-    // glm::mat4 bcs light is weird
-    float aaa[16] = {
-        1, 1, 1, 1,
-        -1, -1, -1, 1,
-        1, 1, 1, 1,
-        1, 1, 1, 1
-    };
-
     // game objects : scene graph
     // --------------------------
     /*std::vector<GameObject> gameObjectsList;
     gameObjectsList.push_back(GameObject("../../res/models/defaultCube.obj"));
     gameObjectsList.push_back(GameObject("../../res/models/defaultCube.obj"));*/
     GameObject gameObj("../../res/models/defaultCube.obj");
-    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/defaultCube.obj"));
-    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/defaultCube.obj"));
-    gameObjectsList[1]->transform.pos = { 2.f, 0.5f, 2.f };
-    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/defaultCube.obj"));
-    gameObjectsList[2]->transform.pos = { -2.f, 2.5f, 2.f };
+    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/defaultCube.obj"));  // [0]
+    gameObjectsList[0]->transform.pos = { 20.f, 0.5f, 2.f };
+    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/defaultCube.obj"));  // [1]
+    gameObjectsList[1]->transform.pos = { 20.f, 0.5f, 2.f };
+    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/defaultCube.obj"));  // [2]
+    gameObjectsList[2]->transform.pos = { -20.f, 2.5f, 2.f };
     gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/gizmoArrow.obj")); // [3]: Light position
     gameObjectsList[3]->transform.rot = { 90.f, 0.f, 0.f };
     gameObjectsList[3]->transform.pos = { 0.f, 9.f, -3.f };
-    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/gizmoArrow.obj")); // [3]: Light position
+    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/gizmoArrow.obj")); // [4]
+    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/salarian-stg/salarian.obj"));  // Salarian [5]
+        gameObjectsList[5]->transform.scale = glm::vec3(0.01f);  // resize Salarian as its too big
+        gameObjectsList[5]->transform.pos = glm::vec3(0.f, -0.5f, 1.4f);
+
+    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/space-cephalopod/cephalopod.obj"));  // Cephalopod [6]
+        gameObjectsList[6]->transform.scale = glm::vec3(0.2f);  // scale cephalopod model
+        gameObjectsList[6]->transform.pos = glm::vec3(0.f, 0.4f, 3.5f);
+        gameObjectsList[6]->transform.rot = glm::vec3(0.f, 180.f, 0.f);
+    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/flying/scene.gltf"));  // Alien [7]
+    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/planet/scene.gltf"));  // planet [8]
+        gameObjectsList[8]->transform.pos = glm::vec3(140.f, 0.f, 0.f);
+        gameObjectsList[8]->transform.scale = glm::vec3(0.1f);
+
+
 
     gameObjectsList[1]->AddChild(gameObjectsList[4].get());  // 4 is a child of 1
 
@@ -875,23 +930,6 @@ void RenderScene(Shader& _shader, GameObject& gameObject)
     _shader.setMat4("model", model);
     glBindVertexArray(planeVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
-    // cubes
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(0.0f, 1.5f, 0.0));
-    model = glm::scale(model, glm::vec3(0.5f));
-    _shader.setMat4("model", model);
-    renderCube();
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(2.0f, 0.0f, 1.0));
-    model = glm::scale(model, glm::vec3(0.5f));
-    _shader.setMat4("model", model);
-    renderCube();
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(-1.0f, 0.0f, 2.0));
-    model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
-    model = glm::scale(model, glm::vec3(0.25));
-    _shader.setMat4("model", model);
-    renderCube();
 
     // Load metal material
     glActiveTexture(GL_TEXTURE3);
@@ -904,9 +942,6 @@ void RenderScene(Shader& _shader, GameObject& gameObject)
     glBindTexture(GL_TEXTURE_2D, roughness);
     glActiveTexture(GL_TEXTURE7);
     glBindTexture(GL_TEXTURE_2D, ao);
-
-    TranslateModel(_shader, glm::vec3(1.f));
-    renderSphere();
 
     // render light source (simply re-render sphere at light positions)
     // this looks a bit off as we use the same shader, but it'll make their positions obvious and 
@@ -924,7 +959,7 @@ void RenderScene(Shader& _shader, GameObject& gameObject)
 
     RenderGameObjects(_shader);
 
-    // load telephone model
+    // load panels model
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, PanelsAlbedo);
     glActiveTexture(GL_TEXTURE4);
@@ -936,11 +971,6 @@ void RenderScene(Shader& _shader, GameObject& gameObject)
     glActiveTexture(GL_TEXTURE7);
     glBindTexture(GL_TEXTURE_2D, PanelsAo);
 
-    TranslateModel(_shader, glm::vec3(0.f, 8.f, 0.f));
-    renderCube();
-    TranslateModel(_shader, glm::vec3(0.f, 14.f, 0.f), glm::vec3(3.f));
-    renderCube();
-
     TranslateModel(_shader, glm::vec3(0.f, 4.f, 0.f));
 }
 
@@ -950,9 +980,85 @@ void RenderGameObjects(Shader& shader)
 {
     for (int i = 0; i < gameObjectsList.size(); i++)
     {
-        shader.setMat4("model", gameObjectsList[i]->transform.modelMatrix);
-        gameObjectsList[i]->Draw(shader);
-        gameObjectsList[i]->updateSelfAndChildren();
+        // Load salarian
+        if (i == 5)
+        {
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, salarianAlbedo);
+            glActiveTexture(GL_TEXTURE4);
+            glBindTexture(GL_TEXTURE_2D, salarianNormal);
+            glActiveTexture(GL_TEXTURE5);
+            glBindTexture(GL_TEXTURE_2D, salarianMetallic);
+            glActiveTexture(GL_TEXTURE6);
+            glBindTexture(GL_TEXTURE_2D, salarianRoughness);
+            glActiveTexture(GL_TEXTURE7);
+            glBindTexture(GL_TEXTURE_2D, salarianAO);
+
+            shader.setMat4("model", gameObjectsList[i]->transform.modelMatrix);
+            gameObjectsList[i]->Draw(shader);
+            gameObjectsList[i]->updateSelfAndChildren();
+        }
+        // Load cephalopod
+        else if (i == 6)
+        {
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, cephalopodAlbedo);
+            glActiveTexture(GL_TEXTURE4);
+            glBindTexture(GL_TEXTURE_2D, cephalopodNormal);
+            glActiveTexture(GL_TEXTURE5);
+            glBindTexture(GL_TEXTURE_2D, cephalopodMetallic);
+            glActiveTexture(GL_TEXTURE6);
+            glBindTexture(GL_TEXTURE_2D, cephalopodRoughness);
+            glActiveTexture(GL_TEXTURE7);
+            glBindTexture(GL_TEXTURE_2D, cephalopodAO);
+
+            shader.setMat4("model", gameObjectsList[i]->transform.modelMatrix);
+            gameObjectsList[i]->Draw(shader);
+            gameObjectsList[i]->updateSelfAndChildren();
+        }
+        // Load big flying alien
+        else if (i == 7)
+        {
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, flyingAlbedo);
+            glActiveTexture(GL_TEXTURE4);
+            glBindTexture(GL_TEXTURE_2D, flyingNormal);
+            glActiveTexture(GL_TEXTURE5);
+            glBindTexture(GL_TEXTURE_2D, flyingMetallic);
+            glActiveTexture(GL_TEXTURE6);
+            glBindTexture(GL_TEXTURE_2D, flyingRoughness);
+            glActiveTexture(GL_TEXTURE7);
+            glBindTexture(GL_TEXTURE_2D, flyingAO);
+
+            shader.setMat4("model", gameObjectsList[i]->transform.modelMatrix);
+            gameObjectsList[i]->Draw(shader);
+            gameObjectsList[i]->updateSelfAndChildren();
+        }
+        // Load big planet alien
+        else if (i == 8)
+        {
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, planetAlbedo);
+            glActiveTexture(GL_TEXTURE4);
+            glBindTexture(GL_TEXTURE_2D, planetNormal);
+            glActiveTexture(GL_TEXTURE5);
+            glBindTexture(GL_TEXTURE_2D, planetMetallic);
+            glActiveTexture(GL_TEXTURE6);
+            glBindTexture(GL_TEXTURE_2D, planetRoughness);
+            glActiveTexture(GL_TEXTURE7);
+            glBindTexture(GL_TEXTURE_2D, planetAO);
+
+            shader.setMat4("model", gameObjectsList[i]->transform.modelMatrix);
+            gameObjectsList[i]->Draw(shader);
+            gameObjectsList[i]->updateSelfAndChildren();
+        }
+        else
+        {
+            shader.setMat4("model", gameObjectsList[i]->transform.modelMatrix);
+            gameObjectsList[i]->Draw(shader);
+            gameObjectsList[i]->updateSelfAndChildren();
+        }
+        
     }
 }
 
@@ -965,6 +1071,7 @@ void TranslateModel(Shader& shader, glm::vec3 translation, glm::vec3 scale)
     shader.setMat4("model", model);
 }
 
+// Selects object active in scene graph
 std::shared_ptr<GameObject> GetSelectedGameObject()
 {
     for (int i = 0; i < gameObjectsList.size(); i++)

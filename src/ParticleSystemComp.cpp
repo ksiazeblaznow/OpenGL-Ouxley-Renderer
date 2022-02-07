@@ -36,9 +36,6 @@ void ParticleSystemComp::Update()
 		glm::vec4* positions = (glm::vec4*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, m_ParticlesCount * sizeof(glm::vec4), access);
 		for (size_t i = 0; i < m_ParticlesCount; i++)
 		{
-			//glm::vec3 center = worldPosition;
-			glm::vec3 center = { 1.f, 1.f, 1.f };
-
 			float u = ((float)rand() / RAND_MAX) * m_Radius;
 			float v = ((float)rand() / RAND_MAX) * m_Radius;
 			float theta = 2.0f * glm::pi<float>() * u;
@@ -107,8 +104,6 @@ void ParticleSystemComp::Reset()
 
 	for (size_t i = 0; i < m_ParticlesCount; i++)
 	{
-		glm::vec3 center = { 1.f, 1.f, 1.f };
-
 		float u = ((float)rand() / RAND_MAX) * m_Radius;
 		float v = ((float)rand() / RAND_MAX) * m_Radius;
 		float theta = 2.0f * glm::pi<float>() * u;
