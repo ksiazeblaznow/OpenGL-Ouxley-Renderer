@@ -26,5 +26,4 @@ State on the 09.11.2021 below:
 > cd Build
  
 > cmake ..
- 
-> Open project (ex. with Visual Studio) and build
+3. Open project (ex. with Visual Studio) and build
