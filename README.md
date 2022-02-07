@@ -1,6 +1,29 @@
 # OpenGL-Ouxley-Renderer
- Graphics renderer based on OpenGL
+Graphics engine/renderer based on OpenGL
+
+Project has been created at Graphics Programming classes conducted at Lodz University Of Technology
 
 ___
 State on the 09.11.2021 below:
-![09-11-2021_screenshot](https://user-images.githubusercontent.com/72666145/140843957-31635a63-5481-47c0-8a5e-4ce95d53b4e0.png)
+![Ouxley-Renderer-Screenshot](https://user-images.githubusercontent.com/72666145/152707156-4179ea56-6aca-492e-afb1-60069784549a.png)
+
+## Features
+
+- [x] PBR (Physically Based Rendering)
+- [x] IBL (Image Based Lighting)
+- [x] Shadow Mapping (with PCF)
+- [x] Instancing
+- [x] Loading 3D models with Assimp
+- [x] Graph Scene for Objects
+- [x] Bloom Effect
+- [x] Compute Shader for Particles (TODO: Sprites rendering)
+
+## How to build
+1. Clone the repository
+2. Locate main folder and write this in console:
+> mkdir Build
+ 
+> cd Build
+ 
+> cmake ..
+3. Open project (ex. with Visual Studio) and build
