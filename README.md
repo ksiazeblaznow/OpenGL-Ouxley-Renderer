@@ -22,6 +22,9 @@ State on the 09.11.2021 below:
 1. Clone the repository
 2. Locate main folder and write this in console:
 > mkdir Build
+ 
 > cd Build
+ 
 > cmake ..
+ 
 > Open project (ex. with Visual Studio) and build
