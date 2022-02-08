@@ -74,16 +74,22 @@ add_library("imgui" STATIC "${IMGUI_DIR}/imgui.cpp"
 					"${IMGUI_DIR}/imgui_widgets.cpp")
 target_include_directories("imgui" PRIVATE "${IMGUI_DIR}")
 
+set(IMGUI_LIBRARY "imgui")
+set(IMGUI_INCLUDE_DIR "${IMGUI_DIR}")
+
 # imguizmo
 set(IMGUIZMO_DIR "${THIRDPARTY_DIR}/imguizmo")
 execute_process(COMMAND git submodule update --init ${IMGUIZMO_DIR}
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_library("imguizmo" STATIC "${IMGUIZMO_DIR}/imguizmo.cpp"
-					"${IMGUIZMO_DIR}/ImGuizmo.cpp")
+add_library("imguizmo" STATIC "${IMGUIZMO_DIR}/ImGuizmo.cpp"
+							  "${IMGUIZMO_DIR}/GraphEditor.cpp"
+							  "${IMGUIZMO_DIR}/ImCurveEdit.cpp"
+							  "${IMGUIZMO_DIR}/ImGradient.cpp"
+							  "${IMGUIZMO_DIR}/ImSequencer.cpp")
 target_include_directories("imguizmo" PRIVATE "${IMGUIZMO_DIR}")
 
-set(IMGUIZMO_LIBRARY "ImGuizmo")
+set(IMGUIZMO_LIBRARY "imguizmo")
 set(IMGUIZMO_INCLUDE_DIR "${IMGUIZMO_DIR}")
 
 # stb_image

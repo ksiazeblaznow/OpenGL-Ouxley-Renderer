@@ -20,10 +20,6 @@ State on the 09.11.2021 below:
 
 ## How to build
 1. Clone the repository
-2. Locate main folder and write this in console:
-> mkdir Build
- 
-> cd Build
- 
-> cmake ..
-3. Open project (ex. with Visual Studio) and build
+2. Run GenerateProject.bat
+3. Open OUXLEY.sln (ex. with Visual Studio)
+4. Build
