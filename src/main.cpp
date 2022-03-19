@@ -31,6 +31,7 @@
 #include "ComputeShader.h"
 #include "ParticleSystemComp.h"
 #include "Instancing.h"
+//#include <Animator.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -661,7 +662,10 @@ planetAO        = loadTexture("../../res/models/planet/scene_material_AO.1001.pn
     gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/planet/scene.gltf"));  // planet [8]
         gameObjectsList[8]->transform.pos = glm::vec3(140.f, 0.f, 0.f);
         gameObjectsList[8]->transform.scale = glm::vec3(0.1f);
-
+    // Vampire for animation
+    //gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/vampire/dancing_vampire.dae"));  // Vampire [9]
+    /*Animation danceAnimation("resources/objects/vampire/dancing_vampire.dae", gameObjectsList[9]);
+    Animator animator(&danceAnimation);*/
 
 
     gameObjectsList[1]->AddChild(gameObjectsList[4].get());  // 4 is a child of 1
