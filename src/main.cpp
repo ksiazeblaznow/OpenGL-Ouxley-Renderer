@@ -31,7 +31,7 @@
 #include "ComputeShader.h"
 #include "ParticleSystemComp.h"
 #include "Instancing.h"
-//#include <Animator.h>
+#include <Animator.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -49,7 +49,7 @@ GLuint loadTexture(char const* path);
 void renderSphere();
 void renderCube();
 void renderQuad();
-void RenderScene(Shader& _shader, GameObject& gameObject);
+void RenderScene(Animator& animator, Shader& _shader, GameObject& gameObject);
 void TranslateModel(Shader& shader, glm::vec3 translation = { 0.f, 0.f, 0.f }, glm::vec3 scale = { 1.f, 1.f, 1.f });
 void RenderGameObjects(Shader& shader);
 std::shared_ptr<GameObject> GetSelectedGameObject();
@@ -117,17 +117,21 @@ GLuint  cephalopodMetallic;
 GLuint cephalopodRoughness;
 GLuint        cephalopodAO;
 // FLying alien
-GLuint flyingAlbedo         ;
-GLuint flyingNormal         ;
-GLuint flyingMetallic       ;
-GLuint flyingRoughness      ;
-GLuint flyingAO             ;
+GLuint flyingAlbedo;
+GLuint flyingNormal;
+GLuint flyingMetallic;
+GLuint flyingRoughness;
+GLuint flyingAO;
 // Planet
 GLuint planetAlbedo;
 GLuint planetNormal;
 GLuint planetMetallic;
 GLuint planetRoughness;
 GLuint planetAO;
+// Vampire
+GLuint vampireAlbedo;
+GLuint vampireNormal;
+GLuint vampireRoughness;
 
 unsigned int planeVAO;
 
@@ -222,7 +226,7 @@ int main()
 
     // configure depth map FBO
     // -----------------------
-    const unsigned int SHADOW_WIDTH = 2048, SHADOW_HEIGHT = 2048;
+    const unsigned int SHADOW_WIDTH = 8192, SHADOW_HEIGHT = 8192;
     unsigned int depthMapFBO;
     glGenFramebuffers(1, &depthMapFBO);
     // create depth texture
@@ -383,6 +387,10 @@ planetNormal    = loadTexture("../../res/models/planet/scene_material_Normal.100
 planetMetallic  = loadTexture("../../res/models/planet/scene_material_Metallic.1001.png");
 planetRoughness = loadTexture("../../res/models/planet/scene_material_Roughness.1001.png");
 planetAO        = loadTexture("../../res/models/planet/scene_material_AO.1001.png");
+
+vampireAlbedo       = loadTexture("../../res/models/vampire/textures/Vampire_diffuse.png");
+vampireNormal       = loadTexture("../../res/models/vampire/textures/Vampire_normal.png");
+vampireRoughness    = loadTexture("../../res/models/vampire/textures/Vampire_specular.png");
 
     // PBR
     shader.use();
@@ -663,9 +671,11 @@ planetAO        = loadTexture("../../res/models/planet/scene_material_AO.1001.pn
         gameObjectsList[8]->transform.pos = glm::vec3(140.f, 0.f, 0.f);
         gameObjectsList[8]->transform.scale = glm::vec3(0.1f);
     // Vampire for animation
-    //gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/vampire/dancing_vampire.dae"));  // Vampire [9]
-    /*Animation danceAnimation("resources/objects/vampire/dancing_vampire.dae", gameObjectsList[9]);
-    Animator animator(&danceAnimation);*/
+    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/vampire/dancing_vampire.dae"));  // Vampire [9]
+    gameObjectsList[9]->transform.scale = glm::vec3(0.005f);
+    gameObjectsList[9]->transform.pos = glm::vec3(0.f, -0.5f, 0.f);
+    Animation danceAnimation("../../res/models/vampire/dancing_vampire.dae", gameObjectsList[9]);
+    Animator animator(&danceAnimation);
 
 
     gameObjectsList[1]->AddChild(gameObjectsList[4].get());  // 4 is a child of 1
@@ -689,6 +699,9 @@ planetAO        = loadTexture("../../res/models/planet/scene_material_AO.1001.pn
         processInput(window);
         glfwSetCursorPosCallback(window, mouse_callback);
         glfwSetScrollCallback(window, scroll_callback);
+
+        // Animation
+        animator.UpdateAnimation(deltaTime);
 
 #pragma region ImGui
 
@@ -830,7 +843,7 @@ planetAO        = loadTexture("../../res/models/planet/scene_material_AO.1001.pn
         glClear(GL_DEPTH_BUFFER_BIT);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, depthMap);  // #TODO why albedo??
-        RenderScene(simpleDepthShader, goDefaultCube);
+        RenderScene(animator, simpleDepthShader, goDefaultCube);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Bind pre-computed IBL data & reset viewport
@@ -871,7 +884,7 @@ planetAO        = loadTexture("../../res/models/planet/scene_material_AO.1001.pn
         shader.setVec3("camPos", camera.Position);
         shader.setVec3("lightPos", lightPos);
         shader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
-        RenderScene(shader, goDefaultCube);
+        RenderScene(animator, shader, goDefaultCube);
 
         // scene graph debug render (move to RenderScene())
         // ------------------------------------------------
@@ -927,7 +940,7 @@ planetAO        = loadTexture("../../res/models/planet/scene_material_AO.1001.pn
 
 bool wireframe = false;
 
-void RenderScene(Shader& _shader, GameObject& gameObject)
+void RenderScene(Animator& animator, Shader& _shader, GameObject& gameObject)
 {
     // floor
     glm::mat4 model = glm::mat4(1.0f);
@@ -946,6 +959,11 @@ void RenderScene(Shader& _shader, GameObject& gameObject)
     glBindTexture(GL_TEXTURE_2D, roughness);
     glActiveTexture(GL_TEXTURE7);
     glBindTexture(GL_TEXTURE_2D, ao);
+
+    // Animation
+    /*auto transforms = animator.GetFinalBoneMatrices();
+    for (int i = 0; i < transforms.size(); ++i)
+        _shader.setMat4("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);*/
 
     // render light source (simply re-render sphere at light positions)
     // this looks a bit off as we use the same shader, but it'll make their positions obvious and 
@@ -1051,6 +1069,20 @@ void RenderGameObjects(Shader& shader)
             glBindTexture(GL_TEXTURE_2D, planetRoughness);
             glActiveTexture(GL_TEXTURE7);
             glBindTexture(GL_TEXTURE_2D, planetAO);
+
+            shader.setMat4("model", gameObjectsList[i]->transform.modelMatrix);
+            gameObjectsList[i]->Draw(shader);
+            gameObjectsList[i]->updateSelfAndChildren();
+        }
+        // Vampire
+        else if (i == 9)
+        {
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, vampireAlbedo);
+            glActiveTexture(GL_TEXTURE4);
+            glBindTexture(GL_TEXTURE_2D, vampireNormal);
+            glActiveTexture(GL_TEXTURE5);
+            glBindTexture(GL_TEXTURE_2D, vampireRoughness);
 
             shader.setMat4("model", gameObjectsList[i]->transform.modelMatrix);
             gameObjectsList[i]->Draw(shader);

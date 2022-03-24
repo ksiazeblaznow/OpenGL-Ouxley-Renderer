@@ -7,7 +7,8 @@
 #include <Bone.h>
 #include <functional>
 #include <BoneInfo.h>
-#include <Model.h>
+
+class GameObject;
 
 struct AssimpNodeData
 {
@@ -22,7 +23,7 @@ class Animation
 public:
 	Animation() = default;
 
-	Animation(std::string animationPath, Model* model)
+	Animation(std::string animationPath, std::shared_ptr<GameObject> model)
 	{
 		Assimp::Importer importer;
 		const aiScene* scene = importer.ReadFile(animationPath, aiProcess_Triangulate);
