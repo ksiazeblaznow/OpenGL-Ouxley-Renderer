@@ -673,7 +673,7 @@ vampireRoughness    = loadTexture("../../res/models/vampire/textures/Vampire_spe
         gameObjectsList[8]->transform.scale = glm::vec3(0.1f);
     // Vampire for animation
     gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/vampire/dancing_vampire.dae"));  // Vampire [9]
-    gameObjectsList[9]->transform.scale = glm::vec3(0.005f);
+    gameObjectsList[9]->transform.scale = glm::vec3(0.6f);
     gameObjectsList[9]->transform.pos = glm::vec3(0.f, -0.5f, 0.f);
     Animation danceAnimation("../../res/models/vampire/dancing_vampire.dae", gameObjectsList[9]);
     Animator animator(&danceAnimation);
@@ -1001,6 +1001,8 @@ void RenderGameObjects(Shader& shader)
 {
     for (int i = 0; i < gameObjectsList.size(); i++)
     {
+        shader.setBool("isAnimated", false);
+
         // Load salarian
         if (i == 5)
         {
@@ -1076,6 +1078,7 @@ void RenderGameObjects(Shader& shader)
         // Vampire
         else if (i == 9)
         {
+            shader.setBool("isAnimated", true);
             glActiveTexture(GL_TEXTURE3);
             glBindTexture(GL_TEXTURE_2D, vampireAlbedo);
             glActiveTexture(GL_TEXTURE4);
@@ -1093,11 +1096,12 @@ void RenderGameObjects(Shader& shader)
         }
         else
         {
+            shader.setBool("isAnimated", false);
             shader.setMat4("model", gameObjectsList[i]->transform.modelMatrix);
             gameObjectsList[i]->Draw(shader);
             gameObjectsList[i]->updateSelfAndChildren();
         }
-        
+        shader.setBool("isAnimated", false);
     }
 }
 

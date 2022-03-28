@@ -13,6 +13,7 @@ out vec4 lightProjectionOut;
 const int MAX_BONES = 100;
 const int MAX_BONE_INFLUENCE = 4;
 uniform mat4 finalBonesMatrices[MAX_BONES];
+uniform bool isAnimated;
 
 out VS_OUT {
     vec3 FragPos;
@@ -32,9 +33,9 @@ void main()
     vec4 totalPosition = vec4(0.0f);
     for(int i = 0 ; i < MAX_BONE_INFLUENCE; i++)
     {
-        if(boneIds[i] == -1) 
+        if(boneIds[i] == -1)
             continue;
-        if(boneIds[i] >=MAX_BONES) 
+        if(boneIds[i] >=MAX_BONES)
         {
             totalPosition = vec4(aPos, 1.0f);
             break;
@@ -52,11 +53,13 @@ void main()
     vs_out.FragPosLightSpace = lightSpaceMatrix * vec4(vs_out.FragPos, 1.0);
 
     TexCoords = aTexCoords;
-    WorldPos = vec3(model * vec4(aPos, 1.0));
+    WorldPos = vec3(model * totalPosition);
     Normal = mat3(model) * aNormal;
 
     //gl_Position = projection * view * vec4(WorldPos, 1.0);
-    gl_Position = projection * view * totalPosition;
-
+    if (isAnimated)
+        gl_Position = projection * view * vec4(WorldPos, 1.0);
+    else if (!isAnimated)
+        gl_Position = projection * view * vec4(model * vec4(aPos, 1.0));
 
 }
