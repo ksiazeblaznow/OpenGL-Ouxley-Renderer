@@ -136,6 +136,7 @@ GLuint vampireRoughness;
 unsigned int planeVAO;
 
 std::vector<std::shared_ptr<GameObject>> gameObjectsList;
+std::vector<glm::mat4> animationTransforms;
 
 int main()
 {
@@ -960,11 +961,6 @@ void RenderScene(Animator& animator, Shader& _shader, GameObject& gameObject)
     glActiveTexture(GL_TEXTURE7);
     glBindTexture(GL_TEXTURE_2D, ao);
 
-    // Animation
-    /*auto transforms = animator.GetFinalBoneMatrices();
-    for (int i = 0; i < transforms.size(); ++i)
-        _shader.setMat4("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);*/
-
     // render light source (simply re-render sphere at light positions)
     // this looks a bit off as we use the same shader, but it'll make their positions obvious and 
     // keeps the codeprint small.
@@ -979,6 +975,9 @@ void RenderScene(Animator& animator, Shader& _shader, GameObject& gameObject)
         renderSphere();
     }
 
+    // Animation
+    animationTransforms = animator.GetFinalBoneMatrices();
+    
     RenderGameObjects(_shader);
 
     // load panels model
@@ -1084,7 +1083,11 @@ void RenderGameObjects(Shader& shader)
             glActiveTexture(GL_TEXTURE5);
             glBindTexture(GL_TEXTURE_2D, vampireRoughness);
 
+            // animation set model:
+            for (int i = 0; i < animationTransforms.size(); ++i)
+                shader.setMat4("finalBonesMatrices[" + std::to_string(i) + "]", animationTransforms[i]);
             shader.setMat4("model", gameObjectsList[i]->transform.modelMatrix);
+            // draw as normal:
             gameObjectsList[i]->Draw(shader);
             gameObjectsList[i]->updateSelfAndChildren();
         }

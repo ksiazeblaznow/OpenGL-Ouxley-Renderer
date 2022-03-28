@@ -108,8 +108,10 @@ public:
         for (unsigned int i = 0; i < mesh->mNumVertices; i++)
         {
             Vertex vertex;
-
             SetVertexBoneDataToDefault(vertex);
+            vertex.Position = AssimpGLMHelpers::GetGLMVec(mesh->mVertices[i]);
+            vertex.Normal = AssimpGLMHelpers::GetGLMVec(mesh->mNormals[i]);
+            // ? it should not change anything (2 up lines)
 
             glm::vec3 vector; // we declare a placeholder vector since assimp uses its own vector class that doesn't directly convert to glm's vec3 class so we transfer the data to this placeholder glm::vec3 first.
             // positions
@@ -201,23 +203,25 @@ public:
 
     void ExtractBoneWeightForVertices(std::vector<Vertex>& vertices, aiMesh* mesh, const aiScene* scene)
     {
+        auto& boneInfoMap = m_BoneInfoMap;
+        int& boneCount = m_BoneCounter;
+
         for (int boneIndex = 0; boneIndex < mesh->mNumBones; ++boneIndex)
         {
             int boneID = -1;
             std::string boneName = mesh->mBones[boneIndex]->mName.C_Str();
-            if (m_BoneInfoMap.find(boneName) == m_BoneInfoMap.end())
+            if (boneInfoMap.find(boneName) == boneInfoMap.end())
             {
                 BoneInfo newBoneInfo;
-                newBoneInfo.id = m_BoneCounter;
-                newBoneInfo.offset = AssimpGLMHelpers::ConvertMatrixToGLMFormat(
-                    mesh->mBones[boneIndex]->mOffsetMatrix);
-                m_BoneInfoMap[boneName] = newBoneInfo;
-                boneID = m_BoneCounter;
-                m_BoneCounter++;
+                newBoneInfo.id = boneCount;
+                newBoneInfo.offset = AssimpGLMHelpers::ConvertMatrixToGLMFormat(mesh->mBones[boneIndex]->mOffsetMatrix);
+                boneInfoMap[boneName] = newBoneInfo;
+                boneID = boneCount;
+                boneCount++;
             }
             else
             {
-                boneID = m_BoneInfoMap[boneName].id;
+                boneID = boneInfoMap[boneName].id;
             }
             assert(boneID != -1);
             auto weights = mesh->mBones[boneIndex]->mWeights;

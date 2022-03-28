@@ -8,7 +8,6 @@
 
 #include <Animation.h>
 #include <Bone.h>
-
 class Animator
 {
 public:
@@ -79,4 +78,3 @@ private:
 	float m_DeltaTime;
 
 };
-

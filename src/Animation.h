@@ -34,7 +34,7 @@ public:
 		aiMatrix4x4 globalTransformation = scene->mRootNode->mTransformation;
 		globalTransformation = globalTransformation.Inverse();
 		ReadHeirarchyData(m_RootNode, scene->mRootNode);
-		ReadMissingBones(animation, *model);
+		ReadMissingBones(animation, model);
 	}
 
 	~Animation()
@@ -63,12 +63,12 @@ public:
 	}
 
 private:
-	void ReadMissingBones(const aiAnimation* animation, Model& model)
+	void ReadMissingBones(const aiAnimation* animation, std::shared_ptr<GameObject> model)
 	{
 		int size = animation->mNumChannels;
 
-		auto& boneInfoMap = model.GetBoneInfoMap();//getting m_BoneInfoMap from Model class
-		int& boneCount = model.GetBoneCount(); //getting the m_BoneCounter from Model class
+		auto& boneInfoMap = model->GetBoneInfoMap();//getting m_BoneInfoMap from Model class
+		int& boneCount = model->GetBoneCount(); //getting the m_BoneCounter from Model class
 
 		//reading channels(bones engaged in an animation and their keyframes)
 		for (int i = 0; i < size; i++)
