@@ -631,6 +631,7 @@ vampireRoughness    = loadTexture("../../res/models/vampire/textures/Vampire_spe
 
     bool show_demo_window = true;
     bool show_another_window = false;
+    bool which_animation = false;
     ImVec4 clear_color = ImVec4(0.1f, 0.1f, 0.1f, 1.00f);
     glm::vec3 lightPosPoint(1.f, 1.f, 2.f);
     glm::vec3 lightAmbient(1.f, 1.f, 1.f);
@@ -672,11 +673,13 @@ vampireRoughness    = loadTexture("../../res/models/vampire/textures/Vampire_spe
         gameObjectsList[8]->transform.pos = glm::vec3(140.f, 0.f, 0.f);
         gameObjectsList[8]->transform.scale = glm::vec3(0.1f);
     // Vampire for animation
-    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/vampire/dancing_vampire.dae"));  // Vampire [9]
-    gameObjectsList[9]->transform.scale = glm::vec3(0.6f);
-    gameObjectsList[9]->transform.pos = glm::vec3(0.f, -0.5f, 0.f);
-    Animation danceAnimation("../../res/models/vampire/dancing_vampire.dae", gameObjectsList[9]);
-    Animator animator(&danceAnimation);
+    gameObjectsList.push_back(std::make_shared<GameObject>("../../res/models/anim-ball/DefaultAnimationBall.fbx"));  // Vampire [9]
+    gameObjectsList[9]->transform.scale = glm::vec3(0.02f);
+    gameObjectsList[9]->transform.pos = glm::vec3(0.f, -2.f, 0.f);
+    Animation ballAnimation1("../../res/models/anim-ball/DefaultAnimationBall.fbx", gameObjectsList[9]);
+    Animation ballAnimation2("../../res/models/anim-ball/DefaultAnimationBall2.fbx", gameObjectsList[9]);
+    Animator animator1(&ballAnimation1);
+    //Animator animator2(&ballAnimation2);
 
 
     gameObjectsList[1]->AddChild(gameObjectsList[4].get());  // 4 is a child of 1
@@ -702,7 +705,7 @@ vampireRoughness    = loadTexture("../../res/models/vampire/textures/Vampire_spe
         glfwSetScrollCallback(window, scroll_callback);
 
         // Animation
-        animator.UpdateAnimation(deltaTime);
+        animator1.UpdateAnimation(deltaTime);
 
 #pragma region ImGui
 
@@ -781,6 +784,7 @@ vampireRoughness    = loadTexture("../../res/models/vampire/textures/Vampire_spe
             ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
             ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
             ImGui::Checkbox("Another Window", &show_another_window);
+            ImGui::Checkbox("Switch Animation", &which_animation);
 
             ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
             ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
@@ -844,7 +848,7 @@ vampireRoughness    = loadTexture("../../res/models/vampire/textures/Vampire_spe
         glClear(GL_DEPTH_BUFFER_BIT);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, depthMap);  // #TODO why albedo??
-        RenderScene(animator, simpleDepthShader, goDefaultCube);
+        RenderScene(animator1, simpleDepthShader, goDefaultCube);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Bind pre-computed IBL data & reset viewport
@@ -885,7 +889,7 @@ vampireRoughness    = loadTexture("../../res/models/vampire/textures/Vampire_spe
         shader.setVec3("camPos", camera.Position);
         shader.setVec3("lightPos", lightPos);
         shader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
-        RenderScene(animator, shader, goDefaultCube);
+        RenderScene(animator1, shader, goDefaultCube);
 
         // scene graph debug render (move to RenderScene())
         // ------------------------------------------------
