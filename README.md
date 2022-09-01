@@ -3,6 +3,8 @@ Graphics engine/renderer based on OpenGL
 
 ![OuxleyLight](https://user-images.githubusercontent.com/72666145/187946259-daafea4c-9197-4d20-9153-0dc00263c6fc.png =216x137)
 
+<img src="https://ksiazeblaznow.githubusercontent.com/..." data-canonical-src="https://user-images.githubusercontent.com/72666145/187946259-daafea4c-9197-4d20-9153-0dc00263c6fc.png" width="200" height="400" />
+
 Project has been created at Graphics Programming classes conducted at Lodz University Of Technology
 
 ___
