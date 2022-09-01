@@ -19,6 +19,7 @@ State on the 09.11.2021 below:
 - [x] Graph Scene for objects on scene
 - [x] Bloom post-process
 - [x] Compute Shader for Particles (TODO: Sprites rendering)
+- [x] Logo
 
 ## How to build
 1. Clone the repository
