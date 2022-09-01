@@ -7,7 +7,7 @@ Project has been created at Graphics Programming classes conducted at Lodz Unive
 
 ___
 State on the 09.11.2021 below:
-![Ouxley-Renderer-Screenshot](https://user-images.githubusercontent.com/72666145/152707156-4179ea56-6aca-492e-afb1-60069784549a.png)
+![Ouxley-Renderer-Screenshot](https://user-images.githubusercontent.com/72666145/187948083-209c34b1-5d64-4639-948f-dce772a6a49c.png)
 
 ## Features
 
