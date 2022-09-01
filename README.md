@@ -1,7 +1,7 @@
 # OpenGL-Ouxley-Renderer
 Graphics engine/renderer based on OpenGL
 
-![OuxleyLight](https://user-images.githubusercontent.com/72666145/187946259-daafea4c-9197-4d20-9153-0dc00263c6fc.png)
+![imageedit_2_7081805973](https://user-images.githubusercontent.com/72666145/187948083-209c34b1-5d64-4639-948f-dce772a6a49c.png)
 
 Project has been created at Graphics Programming classes conducted at Lodz University Of Technology
 
